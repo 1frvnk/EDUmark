@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduMark – Student Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .recent-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-top: 1.2rem;
+    }
+    @media (max-width: 860px) { .recent-grid { grid-template-columns: 1fr; } }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: .8rem;
+    }
+    .section-header h2 { font-size: 1rem; }
+
+    .activity-list { display: flex; flex-direction: column; gap: .6rem; }
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: .8rem;
+      padding: .6rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-icon {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .9rem; flex-shrink: 0;
+    }
+    .activity-text { font-size: .88rem; line-height: 1.4; }
+    .activity-time { font-size: .78rem; color: var(--grey); }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .8rem;
+      margin-top: 1.2rem;
+    }
+    .quick-btn {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: .4rem; padding: 1rem .5rem;
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer; text-decoration: none;
+      color: var(--dark); font-size: .85rem; font-weight: 500;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .quick-btn:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .quick-btn .icon { font-size: 1.5rem; }
+
+    /* Hamburger */
+    .hamburger {
+      display: none; background: none; border: none;
+      font-size: 1.4rem; cursor: pointer; color: var(--dark);
+    }
+    @media (max-width: 768px) { .hamburger { display: block; } }
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.4); z-index: 99;
+    }
+    .overlay.show { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Student Panel</div>
+    <nav>
+      <a href="dashboard.html"    class="nav-link active"><span class="nav-icon">🏠</span> Dashboard</a>
+      <a href="scan.html"         class="nav-link"><span class="nav-icon">📷</span> Scan QR</a>
+      <a href="attendance.html"   class="nav-link"><span class="nav-icon">📋</span> My Attendance</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6); justify-content:flex-start; gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">Dashboard</span>
+      </div>
+      <span class="topbar-user" id="topbarUser">Loading…</span>
+    </div>
+
+    <div class="content">
+
+      <!-- Stat cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📚</div>
+          <div class="stat-label">Enrolled Classes</div>
+          <div class="stat-value" id="statClasses">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-label">Sessions Attended</div>
+          <div class="stat-value" id="statAttended">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-label">Attendance Rate</div>
+          <div class="stat-value" id="statRate">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📡</div>
+          <div class="stat-label">Live Session</div>
+          <div class="stat-value" id="statLive">—</div>
+        </div>
+      </div>
+
+      <!-- Quick actions + Recent activity -->
+      <div class="recent-grid">
+
+        <!-- Quick actions -->
+        <div class="card">
+          <h2>Quick Actions</h2>
+          <div class="quick-actions">
+            <a href="scan.html" class="quick-btn">
+              <span class="icon">📷</span> Scan QR
+            </a>
+            <a href="attendance.html" class="quick-btn">
+              <span class="icon">📋</span> My Attendance
+            </a>
+          </div>
+        </div>
+
+        <!-- Recent attendance -->
+        <div class="card">
+          <div class="section-header">
+            <h2>Recent Attendance</h2>
+            <a href="attendance.html" style="font-size:.83rem;">View all →</a>
+          </div>
+          <div class="activity-list" id="recentAttendance">
+            <p class="text-grey" style="font-size:.88rem;">Loading…</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- My classes -->
+      <div class="card mt-2">
+        <div class="section-header">
+          <h2>My Classes</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Teacher</th>
+              </tr>
+            </thead>
+            <tbody id="myClassesBody">
+              <tr><td colspan="2" class="text-grey">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script type="module">
+  import { auth, db }   from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+  import {
+    collection, getDocs, query, where
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ── Guard: student only ──
+  guardPage("student");
+  attachLogout("logoutBtn");
+
+  // ── Mobile sidebar toggle ──
+  const sidebar   = document.getElementById("sidebar");
+  const overlay   = document.getElementById("overlay");
+  const hamburger = document.getElementById("hamburger");
+  hamburger.addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+    overlay.classList.toggle("show");
+  });
+  overlay.addEventListener("click", () => {
+    sidebar.classList.remove("open");
+    overlay.classList.remove("show");
+  });
+
+  // Shared lookup caches (avoid re-fetching the same class/teacher doc twice)
+  const classCache   = {}; // classId → { className, teacherId }
+  const teacherCache = {}; // teacherId → name
+
+  async function getClass(classId) {
+    if (classCache[classId]) return classCache[classId];
+    const cs = await getDoc(doc(db, "classes", classId));
+    classCache[classId] = cs.exists() ? cs.data() : null;
+    return classCache[classId];
+  }
+  async function getTeacherName(teacherId) {
+    if (!teacherId) return "—";
+    if (teacherCache[teacherId]) return teacherCache[teacherId];
+    const ts = await getDoc(doc(db, "users", teacherId));
+    const name = ts.exists() ? (ts.data().name || ts.data().email) : "—";
+    teacherCache[teacherId] = name;
+    return name;
+  }
+
+  // ── Show logged-in user + load their data ──
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    let studentData = {};
+    if (snap.exists()) {
+      studentData = snap.data();
+      document.getElementById("topbarUser").textContent = studentData.name || user.email;
+    }
+    const classIds = studentData.classIds || [];
+    loadClasses(classIds);
+    loadAttendance(user.uid, classIds);
+  });
+
+  async function loadClasses(classIds) {
+    const statClasses = document.getElementById("statClasses");
+    const tbody = document.getElementById("myClassesBody");
+    statClasses.textContent = classIds.length;
+
+    if (classIds.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" class="text-grey">Not enrolled in any classes yet.</td></tr>';
+      return;
+    }
+    try {
+      tbody.innerHTML = "";
+      for (const classId of classIds) {
+        const c = await getClass(classId);
+        if (!c) continue;
+        const teacherName = await getTeacherName(c.teacherId);
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${c.className || "—"}</strong></td>
+            <td style="color:var(--grey)">${teacherName}</td>
+          </tr>`;
+      }
+    } catch (err) {
+      tbody.innerHTML = '<tr><td colspan="2" class="text-grey">Couldn\'t load classes yet.</td></tr>';
+      console.error("Classes load error:", err);
+    }
+  }
+
+  // ── Attendance ──
+  // NOTE: the "attendance" collection (see firestore.rules) only stores
+  // { studentId, sessionId } — it does NOT store date or className
+  // directly. Those live on the "sessions" doc (date, classId, status),
+  // and className lives on the "classes" doc. So we join through
+  // sessions → classes here, the same pattern admin/dashboard.html
+  // already uses for loadRecentSessions(). This also means we can't
+  // orderBy("date") server-side (attendance has no date field), so we
+  // sort client-side after joining — same composite-index-avoidance
+  // approach used elsewhere in this app.
+  async function loadAttendance(uid, classIds) {
+    const container = document.getElementById("recentAttendance");
+    try {
+      const snap = await getDocs(
+        query(collection(db, "attendance"), where("studentId", "==", uid))
+      );
+
+      document.getElementById("statAttended").textContent = snap.size;
+
+      if (snap.empty) {
+        container.innerHTML = '<p class="text-grey" style="font-size:.88rem;">No attendance recorded yet.</p>';
+      } else {
+        // Join each attendance record to its session (for date + classId)
+        // and then to its class (for className).
+        const records = [];
+        for (const d of snap.docs) {
+          const a = d.data();
+          const sessSnap = await getDoc(doc(db, "sessions", a.sessionId));
+          if (!sessSnap.exists()) continue;
+          const s = sessSnap.data();
+          const c = await getClass(s.classId);
+          records.push({
+            className: c?.className || "Class session",
+            date: s.date?.toDate() || null
+          });
+        }
+        records.sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
+
+        container.innerHTML = "";
+        records.slice(0, 5).forEach(r => {
+          const dateStr = r.date
+            ? r.date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+            : "—";
+          const div = document.createElement("div");
+          div.className = "activity-item";
+          div.innerHTML = `
+            <div class="activity-icon">✅</div>
+            <div>
+              <div class="activity-text">${r.className}</div>
+              <div class="activity-time">${dateStr}</div>
+            </div>`;
+          container.appendChild(div);
+        });
+        if (!records.length) {
+          container.innerHTML = '<p class="text-grey" style="font-size:.88rem;">No attendance recorded yet.</p>';
+        }
+      }
+
+      await loadRateAndLive(uid, classIds, snap.size);
+
+    } catch (err) {
+      container.innerHTML = '<p class="text-grey" style="font-size:.88rem;">Attendance history isn\'t available yet.</p>';
+      document.getElementById("statAttended").textContent = "—";
+      document.getElementById("statRate").textContent = "—";
+      document.getElementById("statLive").textContent = "—";
+      console.error("Attendance load error:", err);
+    }
+  }
+
+  // ── Attendance rate + live session status ──
+  // Firestore 'in' supports max 30 values per query — batch if a student
+  // is ever enrolled in more classes than that (mirrors reports.html).
+  async function loadRateAndLive(uid, classIds, attendedCount) {
+    const rateEl = document.getElementById("statRate");
+    const liveEl = document.getElementById("statLive");
+
+    if (!classIds.length) {
+      rateEl.textContent = "—";
+      liveEl.textContent = "None";
+      return;
+    }
+
+    try {
+      let totalSessions = 0;
+      let anyLive = false;
+      for (let i = 0; i < classIds.length; i += 30) {
+        const chunk = classIds.slice(i, i + 30);
+        const sessSnap = await getDocs(
+          query(collection(db, "sessions"), where("classId", "in", chunk))
+        );
+        totalSessions += sessSnap.size;
+        sessSnap.forEach(d => { if (d.data().status === "active") anyLive = true; });
+      }
+
+      rateEl.textContent = totalSessions > 0
+        ? Math.round((attendedCount / totalSessions) * 100) + "%"
+        : "—";
+      liveEl.textContent = anyLive ? "Live now" : "None";
+    } catch (err) {
+      rateEl.textContent = "—";
+      liveEl.textContent = "—";
+      console.error("Rate/live load error:", err);
+    }
+  }
+</script>
+</body>
+</html>

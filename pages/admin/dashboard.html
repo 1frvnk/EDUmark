@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduMark – Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .recent-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-top: 1.2rem;
+    }
+    @media (max-width: 860px) { .recent-grid { grid-template-columns: 1fr; } }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: .8rem;
+    }
+    .section-header h2 { font-size: 1rem; }
+
+    .activity-list { display: flex; flex-direction: column; gap: .6rem; }
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: .8rem;
+      padding: .6rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-icon {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .9rem; flex-shrink: 0;
+    }
+    .activity-text { font-size: .88rem; line-height: 1.4; }
+    .activity-time { font-size: .78rem; color: var(--grey); }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .8rem;
+      margin-top: 1.2rem;
+    }
+    .quick-btn {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: .4rem; padding: 1rem .5rem;
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer; text-decoration: none;
+      color: var(--dark); font-size: .85rem; font-weight: 500;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .quick-btn:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .quick-btn .icon { font-size: 1.5rem; }
+
+    /* Hamburger */
+    .hamburger {
+      display: none; background: none; border: none;
+      font-size: 1.4rem; cursor: pointer; color: var(--dark);
+    }
+    @media (max-width: 768px) { .hamburger { display: block; } }
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.4); z-index: 99;
+    }
+    .overlay.show { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Admin Panel</div>
+    <nav>
+      <a href="dashboard.html"  class="nav-link active"><span class="nav-icon">🏠</span> Dashboard</a>
+      <a href="students.html"   class="nav-link"><span class="nav-icon">🎓</span> Students</a>
+      <a href="teachers.html"   class="nav-link"><span class="nav-icon">👩‍🏫</span> Teachers</a>
+      <a href="classes.html"    class="nav-link"><span class="nav-icon">📚</span> Classes</a>
+      <a href="reports.html"    class="nav-link"><span class="nav-icon">📊</span> Reports</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6); justify-content:flex-start; gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">Dashboard</span>
+      </div>
+      <span class="topbar-user" id="topbarUser">Loading…</span>
+    </div>
+
+    <div class="content">
+
+      <!-- Stat cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">🎓</div>
+          <div class="stat-label">Total Students</div>
+          <div class="stat-value" id="statStudents">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">👩‍🏫</div>
+          <div class="stat-label">Total Teachers</div>
+          <div class="stat-value" id="statTeachers">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📚</div>
+          <div class="stat-label">Active Classes</div>
+          <div class="stat-value" id="statClasses">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📋</div>
+          <div class="stat-label">Sessions Today</div>
+          <div class="stat-value" id="statSessions">—</div>
+        </div>
+      </div>
+
+      <!-- Quick actions + Recent activity -->
+      <div class="recent-grid">
+
+        <!-- Quick actions -->
+        <div class="card">
+          <h2>Quick Actions</h2>
+          <div class="quick-actions">
+            <a href="students.html" class="quick-btn">
+              <span class="icon">➕</span> Add Student
+            </a>
+            <a href="teachers.html" class="quick-btn">
+              <span class="icon">➕</span> Add Teacher
+            </a>
+            <a href="classes.html" class="quick-btn">
+              <span class="icon">📚</span> New Class
+            </a>
+            <a href="reports.html" class="quick-btn">
+              <span class="icon">📥</span> Export Report
+            </a>
+          </div>
+        </div>
+
+        <!-- Recent sessions -->
+        <div class="card">
+          <div class="section-header">
+            <h2>Recent Sessions</h2>
+            <a href="reports.html" style="font-size:.83rem;">View all →</a>
+          </div>
+          <div class="activity-list" id="recentSessions">
+            <p class="text-grey" style="font-size:.88rem;">Loading…</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Recent registrations -->
+      <div class="card mt-2">
+        <div class="section-header">
+          <h2>Recently Added Students</h2>
+          <a href="students.html" style="font-size:.83rem;">Manage →</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Enrolled Classes</th>
+                <th>Added</th>
+              </tr>
+            </thead>
+            <tbody id="recentStudentsBody">
+              <tr><td colspan="4" class="text-grey">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script type="module">
+  import { auth, db }   from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+  import {
+    collection, getDocs, query, orderBy, limit, where,
+    Timestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ── Guard: admin only ──
+  guardPage("admin");
+  attachLogout("logoutBtn");
+
+  // ── Mobile sidebar toggle ──
+  const sidebar   = document.getElementById("sidebar");
+  const overlay   = document.getElementById("overlay");
+  const hamburger = document.getElementById("hamburger");
+  hamburger.addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+    overlay.classList.toggle("show");
+  });
+  overlay.addEventListener("click", () => {
+    sidebar.classList.remove("open");
+    overlay.classList.remove("show");
+  });
+
+  // ── Show logged-in user name ──
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) {
+      document.getElementById("topbarUser").textContent = snap.data().name || user.email;
+    }
+  });
+
+  // ── Load stat counts ──
+  async function loadStats() {
+    const [students, teachers, classes] = await Promise.all([
+      getDocs(query(collection(db, "users"), where("role","==","student"))),
+      getDocs(query(collection(db, "users"), where("role","==","teacher"))),
+      getDocs(collection(db, "classes")),
+    ]);
+
+    // Sessions today
+    const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+    const sessionsSnap = await getDocs(
+      query(collection(db, "sessions"),
+            where("date",">=", Timestamp.fromDate(startOfDay)))
+    );
+
+    document.getElementById("statStudents").textContent = students.size;
+    document.getElementById("statTeachers").textContent = teachers.size;
+    document.getElementById("statClasses").textContent  = classes.size;
+    document.getElementById("statSessions").textContent = sessionsSnap.size;
+  }
+
+  // ── Load recent sessions ──
+  async function loadRecentSessions() {
+    const snap = await getDocs(
+      query(collection(db, "sessions"), orderBy("date","desc"), limit(5))
+    );
+    const container = document.getElementById("recentSessions");
+    if (snap.empty) {
+      container.innerHTML = '<p class="text-grey" style="font-size:.88rem;">No sessions yet.</p>';
+      return;
+    }
+    // Fetch class names for display
+    const classCache = {};
+    async function getClassName(classId) {
+      if (classCache[classId]) return classCache[classId];
+      const cs = await getDoc(doc(db, "classes", classId));
+      classCache[classId] = cs.exists() ? cs.data().className : classId;
+      return classCache[classId];
+    }
+
+    container.innerHTML = "";
+    for (const d of snap.docs) {
+      const s = d.data();
+      const className = await getClassName(s.classId);
+      const dateStr   = s.date?.toDate().toLocaleDateString("en-GB", {
+        day:"numeric", month:"short", year:"numeric"
+      }) || "—";
+      const div = document.createElement("div");
+      div.className = "activity-item";
+      div.innerHTML = `
+        <div class="activity-icon">📋</div>
+        <div>
+          <div class="activity-text">${className}</div>
+          <div class="activity-time">${dateStr} &nbsp;·&nbsp; <span class="badge ${s.status === 'active' ? 'badge-present' : 'badge-absent'}">${s.status || 'closed'}</span></div>
+        </div>`;
+      container.appendChild(div);
+    }
+  }
+
+  // ── Load recent students ──
+  async function loadRecentStudents() {
+    const snap = await getDocs(
+      query(collection(db, "users"),
+            where("role","==","student"),
+            orderBy("createdAt","desc"),
+            limit(6))
+    );
+    const tbody = document.getElementById("recentStudentsBody");
+    if (snap.empty) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-grey">No students added yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = "";
+    snap.forEach(d => {
+      const s = d.data();
+      const added = s.createdAt?.toDate().toLocaleDateString("en-GB", {
+        day:"numeric", month:"short", year:"numeric"
+      }) || "—";
+      const enrolled = (s.classIds || []).length;
+      tbody.innerHTML += `
+        <tr>
+          <td><strong>${s.name || "—"}</strong></td>
+          <td style="color:var(--grey)">${s.email || "—"}</td>
+          <td>${enrolled} class${enrolled !== 1 ? "es" : ""}</td>
+          <td style="color:var(--grey)">${added}</td>
+        </tr>`;
+    });
+  }
+
+  // ── Run all ──
+  loadStats();
+  loadRecentSessions();
+  loadRecentStudents();
+</script>
+</body>
+</html>

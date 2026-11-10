@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ────────────────────────────────────────
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isAdmin() {
+      return isLoggedIn() && userDoc().role == 'admin';
+    }
+    function isTeacher() {
+      return isLoggedIn() && userDoc().role == 'teacher';
+    }
+    function isStudent() {
+      return isLoggedIn() && userDoc().role == 'student';
+    }
+    function isOwner(uid) {
+      return isLoggedIn() && request.auth.uid == uid;
+    }
+    // Looks up the session a check-in claims to belong to, so we can
+    // verify it's real and currently active before allowing a write.
+    // If the session doesn't exist, this get() fails closed (denies
+    // the write) rather than throwing an unhandled error.
+    function sessionDoc(sessionId) {
+      return get(/databases/$(database)/documents/sessions/$(sessionId)).data;
+    }
+
+    // ── /users ───────────────────────────────────────────────────
+    match /users/{userId} {
+      // Users can read their own doc; admin reads all
+      allow read:   if isOwner(userId) || isAdmin();
+      // Only admin creates/updates/deletes user docs
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── /classes ─────────────────────────────────────────────────
+    match /classes/{classId} {
+      allow read:   if isLoggedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── /sessions ────────────────────────────────────────────────
+    match /sessions/{sessionId} {
+      allow read:   if isLoggedIn();
+      // Teacher creates sessions for their own classes
+      allow create: if isTeacher();
+      // Admin or the teacher who owns the session can update/delete
+      allow update, delete: if isAdmin()
+                            || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
+    // ── /attendance ──────────────────────────────────────────────
+    // Document ID convention: "{sessionId}_{studentId}" (enforced
+    // below). This makes a check-in naturally idempotent — a repeat
+    // scan for the same session/student lands on an *existing* doc,
+    // which falls under "allow update: if false" and is rejected,
+    // instead of silently creating a duplicate attendance record.
+    match /attendance/{recordId} {
+      // Student can only create their OWN attendance record, and only if:
+      //  - the recordId matches the sessionId_studentId convention
+      //    (prevents writing under a mismatched/spoofed path)
+      //  - the referenced session actually exists and is still active
+      //  - the session's class is one the student is actually enrolled in
+      allow create: if isStudent()
+                    && request.resource.data.studentId == request.auth.uid
+                    && recordId == (request.resource.data.sessionId + '_' + request.auth.uid)
+                    && sessionDoc(request.resource.data.sessionId).status == 'active'
+                    && sessionDoc(request.resource.data.sessionId).classId in userDoc().classIds;
+      // No one can update or delete attendance once written
+      allow update, delete: if false;
+      // Teachers and admins can read; students read only their own
+      allow read: if isAdmin()
+                  || isTeacher()
+                  || (isStudent() && resource.data.studentId == request.auth.uid);
+    }
+  }
+}

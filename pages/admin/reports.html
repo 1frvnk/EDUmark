@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduMark – Reports</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/style.css" />
+
+  <!-- Export libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    .hamburger { display:none; background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--dark); }
+    @media (max-width:768px) { .hamburger { display:block; } }
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:99; }
+    .overlay.show { display:block; }
+
+    /* Filter bar */
+    .filter-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: .8rem;
+      margin-bottom: 1.2rem;
+    }
+
+    /* Summary cards */
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .8rem;
+      margin-bottom: 1.2rem;
+    }
+    .summary-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 1rem;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .summary-card .s-value {
+      font-size: 1.8rem; font-weight: 700; line-height: 1;
+    }
+    .summary-card .s-label {
+      font-size: .78rem; color: var(--grey); margin-top: .3rem;
+    }
+
+    /* Export buttons */
+    .export-bar {
+      display: flex; gap: .6rem; justify-content: flex-end;
+      margin-bottom: .8rem; flex-wrap: wrap;
+    }
+
+    /* Progress bar */
+    .progress-wrap { background: var(--bg); border-radius: 99px; height: 8px; overflow: hidden; min-width: 80px; }
+    .progress-bar  { height: 100%; border-radius: 99px; background: var(--accent); }
+    .progress-bar.warn { background: var(--warn); }
+    .progress-bar.danger { background: var(--danger); }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: 3rem 1rem; color: var(--grey);
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: .6rem; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Admin Panel</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+      <a href="students.html"  class="nav-link"><span class="nav-icon">🎓</span> Students</a>
+      <a href="teachers.html"  class="nav-link"><span class="nav-icon">👩‍🏫</span> Teachers</a>
+      <a href="classes.html"   class="nav-link"><span class="nav-icon">📚</span> Classes</a>
+      <a href="reports.html"   class="nav-link active"><span class="nav-icon">📊</span> Reports</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn"
+              style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">Attendance Reports</span>
+      </div>
+      <span class="topbar-user" id="topbarUser"></span>
+    </div>
+
+    <div class="content">
+
+      <!-- Filters -->
+      <div class="card mb-2">
+        <h2 style="margin-bottom:.8rem;font-size:1rem;">Filter Report</h2>
+        <div class="filter-bar">
+          <div class="form-group">
+            <label>Class</label>
+            <select id="filterClass" class="form-control">
+              <option value="">All Classes</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date From</label>
+            <input type="date" id="filterFrom" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>Date To</label>
+            <input type="date" id="filterTo" class="form-control" />
+          </div>
+          <div class="form-group" style="justify-content:flex-end;">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" id="runReportBtn">Run Report</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="pageAlert" class="alert hidden"></div>
+
+      <!-- Summary cards (hidden until report runs) -->
+      <div class="summary-row hidden" id="summaryRow">
+        <div class="summary-card">
+          <div class="s-value" id="sTotalSessions">—</div>
+          <div class="s-label">Sessions</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-value" id="sTotalPresent">—</div>
+          <div class="s-label">Present Records</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-value" id="sTotalStudents">—</div>
+          <div class="s-label">Unique Students</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-value text-accent" id="sAvgRate">—</div>
+          <div class="s-label">Avg Attendance</div>
+        </div>
+      </div>
+
+      <!-- Export bar -->
+      <div class="export-bar hidden" id="exportBar">
+        <button class="btn btn-outline" id="exportExcelBtn">📥 Export Excel</button>
+        <button class="btn btn-primary" id="exportPdfBtn">📄 Export PDF</button>
+      </div>
+
+      <!-- Results table -->
+      <div class="card" style="padding:0;overflow:hidden;" id="resultsCard">
+        <div class="empty-state">
+          <div class="icon">📊</div>
+          <p>Select filters and click <strong>Run Report</strong> to load attendance data.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db } from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+  import {
+    collection, getDocs, query, where, orderBy,
+    doc, getDoc, Timestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  guardPage("admin");
+  attachLogout("logoutBtn");
+
+  // Sidebar toggle
+  document.getElementById("hamburger").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("overlay").classList.toggle("show");
+  });
+  document.getElementById("overlay").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  });
+
+  // Topbar user
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) document.getElementById("topbarUser").textContent = snap.data().name || user.email;
+  });
+
+  // ── Caches ──
+  let classCache   = {}; // id → className
+  let studentCache = {}; // id → name
+  let reportRows   = []; // current report data for export
+
+  // ── Load classes into filter dropdown ──
+  async function loadClasses() {
+    const snap = await getDocs(query(collection(db, "classes"), orderBy("className")));
+    const sel  = document.getElementById("filterClass");
+    snap.forEach(d => {
+      classCache[d.id] = d.data().className;
+      sel.innerHTML += `<option value="${d.id}">${d.data().className}</option>`;
+    });
+  }
+
+  // ── Fetch student name (cached) ──
+  async function getStudentName(uid) {
+    if (studentCache[uid]) return studentCache[uid];
+    const snap = await getDoc(doc(db, "users", uid));
+    const name = snap.exists() ? (snap.data().name || snap.data().email || uid) : uid;
+    studentCache[uid] = name;
+    return name;
+  }
+
+  // ── Helpers ──
+  function showAlert(msg, type="error") {
+    const el = document.getElementById("pageAlert");
+    el.textContent = msg; el.className = `alert alert-${type}`;
+  }
+  function hideAlert() { document.getElementById("pageAlert").className = "alert hidden"; }
+
+  function dateToTs(dateStr, endOfDay=false) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (endOfDay) d.setHours(23,59,59,999);
+    return Timestamp.fromDate(d);
+  }
+
+  function pctColor(pct) {
+    if (pct >= 75) return "";
+    if (pct >= 50) return "warn";
+    return "danger";
+  }
+
+  // ── Run Report ──
+  document.getElementById("runReportBtn").addEventListener("click", runReport);
+
+  async function runReport() {
+    hideAlert();
+    const classId  = document.getElementById("filterClass").value;
+    const fromDate = document.getElementById("filterFrom").value;
+    const toDate   = document.getElementById("filterTo").value;
+
+    const btn = document.getElementById("runReportBtn");
+    btn.disabled = true; btn.textContent = "Loading…";
+
+    try {
+      // Build sessions query
+      let sessQ = [collection(db, "sessions"), orderBy("date", "desc")];
+      if (classId) sessQ = [collection(db,"sessions"),
+        where("classId","==",classId), orderBy("date","desc")];
+
+      let sessSnap = await getDocs(query(...sessQ));
+      let sessions = sessSnap.docs.map(d => ({ id:d.id, ...d.data() }));
+
+      // Date filter
+      if (fromDate) {
+        const from = dateToTs(fromDate);
+        sessions = sessions.filter(s => s.date && s.date >= from);
+      }
+      if (toDate) {
+        const to = dateToTs(toDate, true);
+        sessions = sessions.filter(s => s.date && s.date <= to);
+      }
+
+      if (!sessions.length) {
+        renderEmpty("No sessions found for the selected filters.");
+        return;
+      }
+
+      // Fetch attendance for all matching sessions
+      const sessionIds = sessions.map(s => s.id);
+
+      // Firestore 'in' supports max 30 per query — batch if needed
+      let allAttendance = [];
+      for (let i = 0; i < sessionIds.length; i += 30) {
+        const chunk = sessionIds.slice(i, i+30);
+        const aSnap = await getDocs(
+          query(collection(db,"attendance"), where("sessionId","in", chunk))
+        );
+        aSnap.forEach(d => allAttendance.push({ id:d.id, ...d.data() }));
+      }
+
+      // Group attendance by student
+      const studentSessions = {}; // studentId → Set of sessionIds present
+      allAttendance.forEach(a => {
+        if (!studentSessions[a.studentId]) studentSessions[a.studentId] = new Set();
+        studentSessions[a.studentId].add(a.sessionId);
+      });
+
+      const totalSessions  = sessions.length;
+      const uniqueStudents = Object.keys(studentSessions).length;
+      const totalPresent   = allAttendance.length;
+      const avgRate = uniqueStudents > 0
+        ? Math.round((totalPresent / (totalSessions * uniqueStudents)) * 100)
+        : 0;
+
+      // Build per-student rows
+      reportRows = [];
+      for (const [studentId, presentSet] of Object.entries(studentSessions)) {
+        const name    = await getStudentName(studentId);
+        const present = presentSet.size;
+        const pct     = Math.round((present / totalSessions) * 100);
+        reportRows.push({ name, present, total: totalSessions, pct });
+      }
+      // Sort by attendance % desc
+      reportRows.sort((a,b) => b.pct - a.pct);
+
+      // Update summary
+      document.getElementById("sTotalSessions").textContent = totalSessions;
+      document.getElementById("sTotalPresent").textContent  = totalPresent;
+      document.getElementById("sTotalStudents").textContent = uniqueStudents;
+      document.getElementById("sAvgRate").textContent       = avgRate + "%";
+      document.getElementById("summaryRow").classList.remove("hidden");
+      document.getElementById("exportBar").classList.remove("hidden");
+
+      // Render table
+      renderTable(reportRows, sessions, classId);
+
+    } catch(err) {
+      showAlert("Error loading report: " + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Run Report";
+    }
+  }
+
+  function renderEmpty(msg) {
+    document.getElementById("summaryRow").classList.add("hidden");
+    document.getElementById("exportBar").classList.add("hidden");
+    document.getElementById("resultsCard").innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <p>${msg}</p>
+      </div>`;
+  }
+
+  function renderTable(rows, sessions, classId) {
+    const className = classId ? (classCache[classId] || classId) : "All Classes";
+    const fromVal   = document.getElementById("filterFrom").value;
+    const toVal     = document.getElementById("filterTo").value;
+    const dateRange = fromVal || toVal
+      ? `${fromVal || "—"}  to  ${toVal || "—"}`
+      : "All Dates";
+
+    let html = `
+      <div style="padding:1rem 1.2rem .4rem; border-bottom:1px solid var(--border);">
+        <span style="font-size:.85rem; color:var(--grey);">
+          📚 ${className} &nbsp;·&nbsp; 📅 ${dateRange} &nbsp;·&nbsp;
+          ${sessions.length} session${sessions.length!==1?"s":""}
+        </span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Student Name</th>
+              <th>Sessions Present</th>
+              <th>Total Sessions</th>
+              <th>Attendance %</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+    rows.forEach((r, i) => {
+      const colorClass = pctColor(r.pct);
+      const status = r.pct >= 75
+        ? '<span class="badge badge-present">Good</span>'
+        : r.pct >= 50
+          ? '<span class="badge badge-late">At Risk</span>'
+          : '<span class="badge badge-absent">Critical</span>';
+
+      html += `<tr>
+        <td style="color:var(--grey)">${i+1}</td>
+        <td><strong>${r.name}</strong></td>
+        <td>${r.present}</td>
+        <td>${r.total}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:.6rem;">
+            <div class="progress-wrap" style="flex:1">
+              <div class="progress-bar ${colorClass}" style="width:${r.pct}%"></div>
+            </div>
+            <span style="font-weight:600;min-width:36px;">${r.pct}%</span>
+          </div>
+        </td>
+        <td>${status}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    document.getElementById("resultsCard").innerHTML = html;
+  }
+
+  // ── Export Excel ──
+  document.getElementById("exportExcelBtn").addEventListener("click", () => {
+    if (!reportRows.length) return;
+    const wsData = [
+      ["Student Name", "Sessions Present", "Total Sessions", "Attendance %", "Status"],
+      ...reportRows.map(r => [
+        r.name, r.present, r.total, r.pct + "%",
+        r.pct >= 75 ? "Good" : r.pct >= 50 ? "At Risk" : "Critical"
+      ])
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{ wch:28 },{ wch:18 },{ wch:16 },{ wch:16 },{ wch:12 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Attendance Report");
+    XLSX.writeFile(wb, `EduMark_Attendance_${today()}.xlsx`);
+  });
+
+  // ── Export PDF ──
+  document.getElementById("exportPdfBtn").addEventListener("click", () => {
+    if (!reportRows.length) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    const classId   = document.getElementById("filterClass").value;
+    const className = classId ? (classCache[classId] || classId) : "All Classes";
+    const fromVal   = document.getElementById("filterFrom").value;
+    const toVal     = document.getElementById("filterTo").value;
+
+    // Header
+    doc.setFillColor(26, 115, 232);
+    doc.rect(0, 0, 210, 28, "F");
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(16); doc.setFont("helvetica","bold");
+    doc.text("EduMark – Attendance Report", 14, 12);
+    doc.setFontSize(9); doc.setFont("helvetica","normal");
+    doc.text(`Class: ${className}   |   Period: ${fromVal||"—"} to ${toVal||"—"}   |   Generated: ${today()}`, 14, 21);
+
+    // Summary strip
+    doc.setFillColor(232, 240, 254);
+    doc.rect(0, 28, 210, 14, "F");
+    doc.setTextColor(13, 71, 161);
+    doc.setFontSize(9); doc.setFont("helvetica","bold");
+    const totalP = reportRows.reduce((s,r)=>s+r.present,0);
+    const avgPct = reportRows.length
+      ? Math.round(reportRows.reduce((s,r)=>s+r.pct,0)/reportRows.length)
+      : 0;
+    doc.text(`Students: ${reportRows.length}   |   Total Present: ${totalP}   |   Avg Attendance: ${avgPct}%`, 14, 37);
+
+    // Table
+    doc.autoTable({
+      startY: 46,
+      head: [["#","Student Name","Present","Total","Attendance %","Status"]],
+      body: reportRows.map((r,i) => [
+        i+1, r.name, r.present, r.total, r.pct+"%",
+        r.pct>=75?"Good": r.pct>=50?"At Risk":"Critical"
+      ]),
+      headStyles: { fillColor:[26,115,232], textColor:255, fontStyle:"bold", fontSize:9 },
+      bodyStyles: { fontSize:9, textColor:[28,43,74] },
+      alternateRowStyles: { fillColor:[248,249,255] },
+      columnStyles: {
+        0:{ cellWidth:10, halign:"center" },
+        2:{ halign:"center" }, 3:{ halign:"center" },
+        4:{ halign:"center", fontStyle:"bold" },
+        5:{ halign:"center" }
+      },
+      didDrawCell(data) {
+        // Colour the Status cell
+        if (data.section==="body" && data.column.index===5) {
+          const val = data.cell.raw;
+          const color = val==="Good" ? [52,168,83] : val==="At Risk" ? [251,188,4] : [234,67,53];
+          data.doc.setTextColor(...color);
+          data.doc.setFontSize(8);
+          data.doc.text(val,
+            data.cell.x + data.cell.width/2,
+            data.cell.y + data.cell.height/2 + 1,
+            { align:"center" });
+        }
+      },
+      margin: { left:14, right:14 }
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i=1; i<=pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text(`EduMark – GCTU  |  Page ${i} of ${pageCount}`,
+        doc.internal.pageSize.width/2, doc.internal.pageSize.height-8, { align:"center" });
+    }
+
+    doc.save(`EduMark_Attendance_${today()}.pdf`);
+  });
+
+  function today() {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  // ── Set default date range (current month) ──
+  function setDefaultDates() {
+    const now   = new Date();
+    const from  = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById("filterFrom").value = from.toISOString().split("T")[0];
+    document.getElementById("filterTo").value   = now.toISOString().split("T")[0];
+  }
+
+  setDefaultDates();
+  loadClasses();
+</script>
+</body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduMark – Scan QR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/style.css" />
+
+  <!-- QR camera scanning -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    .hamburger { display:none; background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--dark); }
+    @media (max-width:768px) { .hamburger { display:block; } }
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:99; }
+    .overlay.show { display:block; }
+
+    .scan-wrap {
+      max-width: 420px;
+      margin: 0 auto;
+    }
+    .stage {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center;
+      padding: 2rem 1.5rem;
+    }
+    .stage .icon { font-size: 2.6rem; margin-bottom: .8rem; }
+    .stage h2 { margin-bottom: .4rem; }
+    .stage p { color: var(--grey); font-size: .9rem; margin-bottom: 1.2rem; }
+
+    #qrReader {
+      width: 100%;
+      max-width: 300px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 0 auto 1rem;
+    }
+    #qrReader video { border-radius: var(--radius); }
+
+    .manual-toggle {
+      font-size: .85rem; margin-top: .8rem; cursor: pointer;
+      color: var(--primary); background: none; border: none;
+    }
+    .manual-form {
+      display: flex; flex-direction: column; gap: .8rem;
+      width: 100%; margin-top: .8rem;
+    }
+
+    .status-icon {
+      width: 60px; height: 60px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; margin-bottom: 1rem;
+    }
+    .status-icon.success { background: #e6f4ea; color: #2d9348; }
+    .status-icon.error   { background: #fce8e6; color: #c62828; }
+    .status-icon.info    { background: var(--primary-light); color: var(--primary-dark); }
+
+    .stage-actions { display: flex; gap: .6rem; flex-wrap: wrap; justify-content: center; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Student Panel</div>
+    <nav>
+      <a href="dashboard.html"    class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+      <a href="scan.html"         class="nav-link active"><span class="nav-icon">📷</span> Scan QR</a>
+      <a href="attendance.html"   class="nav-link"><span class="nav-icon">📋</span> My Attendance</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">Scan QR</span>
+      </div>
+      <span class="topbar-user" id="topbarUser"></span>
+    </div>
+
+    <div class="content">
+      <div class="scan-wrap">
+        <div class="card" style="padding:0;">
+          <div id="scanStage" class="stage">
+            <p class="text-grey">Loading…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db } from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+  import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  guardPage("student");
+  attachLogout("logoutBtn");
+
+  document.getElementById("hamburger").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("overlay").classList.toggle("show");
+  });
+  document.getElementById("overlay").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  });
+
+  const stage = document.getElementById("scanStage");
+  let currentUid = null;
+  let studentClassIds = [];
+  let html5QrCode = null;
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    currentUid = user.uid;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) {
+      document.getElementById("topbarUser").textContent = snap.data().name || user.email;
+      studentClassIds = snap.data().classIds || [];
+    }
+
+    // A QR pointing straight at this page (e.g. scanned by the phone's
+    // native camera app) arrives as ?session=ID — skip the in-app
+    // scanner and go straight to the confirm step.
+    const sessionParam = new URLSearchParams(window.location.search).get("session");
+    if (sessionParam) {
+      processSession(sessionParam.trim());
+    } else {
+      startScanner();
+    }
+  });
+
+  // ── Pull a session ID out of whatever the camera decoded ──
+  // The QR encodes a full URL (…/scan.html?session=ID), but fall back
+  // to treating the raw text as the ID itself, in case of a plain-text
+  // code entered manually or a differently-formatted QR.
+  function extractSessionId(decodedText) {
+    try {
+      const url = new URL(decodedText);
+      const sid = url.searchParams.get("session");
+      if (sid) return sid;
+    } catch (e) { /* not a URL — fall through */ }
+    return decodedText.trim();
+  }
+
+  // ── Camera scanner view ──
+  function startScanner() {
+    stage.innerHTML = `
+      <div class="icon">📷</div>
+      <h2>Scan Class QR Code</h2>
+      <p>Point your camera at the QR code your teacher is showing.</p>
+      <div id="qrReader"></div>
+      <button class="manual-toggle" id="manualToggleBtn">Enter code manually instead</button>
+    `;
+    document.getElementById("manualToggleBtn").addEventListener("click", showManualEntry);
+
+    html5QrCode = new Html5Qrcode("qrReader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 230 },
+      (decodedText) => {
+        stopScanner();
+        processSession(extractSessionId(decodedText));
+      },
+      () => { /* per-frame scan misses — ignore, keep scanning */ }
+    ).catch((err) => {
+      console.error("Camera start error:", err);
+      showCameraError();
+    });
+  }
+
+  function stopScanner() {
+    if (html5QrCode) {
+      html5QrCode.stop().catch(() => {}).finally(() => { html5QrCode = null; });
+    }
+  }
+
+  function showCameraError() {
+    stage.innerHTML = `
+      <div class="status-icon error">🚫</div>
+      <h2>Camera Unavailable</h2>
+      <p>We couldn't access your camera. You can still check in by entering the session code shown on screen.</p>
+      <div id="manualEntryHost"></div>
+    `;
+    renderManualForm(document.getElementById("manualEntryHost"));
+  }
+
+  function showManualEntry() {
+    stopScanner();
+    stage.innerHTML = `
+      <div class="icon">⌨️</div>
+      <h2>Enter Session Code</h2>
+      <p>Type or paste the code or link your teacher shared.</p>
+      <div id="manualEntryHost"></div>
+      <button class="manual-toggle" id="backToScanBtn">Use camera instead</button>
+    `;
+    renderManualForm(document.getElementById("manualEntryHost"));
+    document.getElementById("backToScanBtn").addEventListener("click", startScanner);
+  }
+
+  function renderManualForm(host) {
+    host.innerHTML = `
+      <div class="manual-form">
+        <input type="text" id="manualInput" class="form-control" placeholder="Session code or link" />
+        <button class="btn btn-primary" id="manualSubmitBtn">Continue</button>
+      </div>`;
+    document.getElementById("manualSubmitBtn").addEventListener("click", () => {
+      const val = document.getElementById("manualInput").value.trim();
+      if (!val) return;
+      processSession(extractSessionId(val));
+    });
+  }
+
+  // ── Validate the session, then show a confirm step ──
+  async function processSession(sessionId) {
+    stopScanner();
+    stage.innerHTML = `<div class="icon">⏳</div><p>Checking session…</p>`;
+
+    try {
+      const sessSnap = await getDoc(doc(db, "sessions", sessionId));
+      if (!sessSnap.exists()) {
+        return renderError("Invalid Code", "This session code doesn't exist. Ask your teacher for a fresh QR code.");
+      }
+      const session = sessSnap.data();
+
+      if (session.status !== "active") {
+        return renderError("Session Ended", "This attendance session isn't accepting check-ins anymore.");
+      }
+      if (!studentClassIds.includes(session.classId)) {
+        return renderError("Not Enrolled", "You're not enrolled in this class, so this code can't be used.");
+      }
+
+      const classSnap = await getDoc(doc(db, "classes", session.classId));
+      const className = classSnap.exists() ? (classSnap.data().className || "this class") : "this class";
+
+      const attendanceId = `${sessionId}_${currentUid}`;
+      const existing = await getDoc(doc(db, "attendance", attendanceId));
+      if (existing.exists()) {
+        return renderAlreadyCheckedIn(className);
+      }
+
+      renderConfirm(sessionId, session.classId, className, attendanceId);
+    } catch (err) {
+      console.error("Session lookup error:", err);
+      renderError("Something Went Wrong", "Couldn't verify this session. Check your connection and try again.");
+    }
+  }
+
+  function renderConfirm(sessionId, classId, className, attendanceId) {
+    stage.innerHTML = `
+      <div class="status-icon info">✅</div>
+      <h2>${className}</h2>
+      <p>Confirm your attendance for this session.</p>
+      <div class="stage-actions">
+        <button class="btn btn-ghost" id="cancelCheckInBtn">Cancel</button>
+        <button class="btn btn-primary" id="checkInBtn">Check In</button>
+      </div>
+    `;
+    document.getElementById("cancelCheckInBtn").addEventListener("click", startScanner);
+    document.getElementById("checkInBtn").addEventListener("click", () =>
+      confirmCheckIn(sessionId, classId, className, attendanceId)
+    );
+  }
+
+  async function confirmCheckIn(sessionId, classId, className, attendanceId) {
+    const btn = document.getElementById("checkInBtn");
+    btn.disabled = true; btn.textContent = "Checking in…";
+    try {
+      await setDoc(doc(db, "attendance", attendanceId), {
+        studentId: currentUid,
+        sessionId,
+        classId,
+        checkedInAt: serverTimestamp()
+      });
+      renderSuccess(className);
+    } catch (err) {
+      console.error("Check-in error:", err);
+      const msg = err.code === "permission-denied"
+        ? "This session may have just ended, or you're not enrolled in this class."
+        : "Something went wrong while checking you in. Please try again.";
+      renderError("Check-in Failed", msg);
+    }
+  }
+
+  function renderSuccess(className) {
+    stage.innerHTML = `
+      <div class="status-icon success">✓</div>
+      <h2>You're Checked In</h2>
+      <p>Attendance recorded for <strong>${className}</strong>.</p>
+      <div class="stage-actions">
+        <button class="btn btn-ghost" id="scanAnotherBtn">Scan Another</button>
+        <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
+      </div>
+    `;
+    document.getElementById("scanAnotherBtn").addEventListener("click", startScanner);
+  }
+
+  function renderAlreadyCheckedIn(className) {
+    stage.innerHTML = `
+      <div class="status-icon info">✓</div>
+      <h2>Already Checked In</h2>
+      <p>You've already recorded attendance for <strong>${className}</strong> in this session.</p>
+      <div class="stage-actions">
+        <button class="btn btn-ghost" id="scanAnotherBtn">Scan Another</button>
+        <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
+      </div>
+    `;
+    document.getElementById("scanAnotherBtn").addEventListener("click", startScanner);
+  }
+
+  function renderError(title, message) {
+    stage.innerHTML = `
+      <div class="status-icon error">✕</div>
+      <h2>${title}</h2>
+      <p>${message}</p>
+      <div class="stage-actions">
+        <button class="btn btn-primary" id="retryBtn">Try Again</button>
+      </div>
+    `;
+    document.getElementById("retryBtn").addEventListener("click", startScanner);
+  }
+
+  window.addEventListener("beforeunload", stopScanner);
+</script>
+</body>
+</html>

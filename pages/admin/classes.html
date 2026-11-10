@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduMark – Classes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; }
+    .hamburger   { display:none; background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--dark); }
+    @media (max-width:768px) { .hamburger { display:block; } }
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:99; }
+    .overlay.show { display:block; }
+    .action-btns { display:flex; gap:.4rem; }
+    .multi-select-wrap {
+      border:1.5px solid var(--border); border-radius:var(--radius);
+      max-height:160px; overflow-y:auto; padding:.4rem;
+    }
+    .multi-select-wrap label {
+      display:flex; align-items:center; gap:.5rem;
+      padding:.3rem .4rem; border-radius:6px; cursor:pointer;
+      font-size:.88rem; font-weight:400; color:var(--dark);
+    }
+    .multi-select-wrap label:hover { background:var(--primary-light); }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Admin Panel</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+      <a href="students.html"  class="nav-link"><span class="nav-icon">🎓</span> Students</a>
+      <a href="teachers.html"  class="nav-link"><span class="nav-icon">👩‍🏫</span> Teachers</a>
+      <a href="classes.html"   class="nav-link active"><span class="nav-icon">📚</span> Classes</a>
+      <a href="reports.html"   class="nav-link"><span class="nav-icon">📊</span> Reports</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">Manage Classes</span>
+      </div>
+      <span class="topbar-user" id="topbarUser"></span>
+    </div>
+
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h1 style="font-size:1.3rem;">Classes</h1>
+          <p class="text-grey" style="font-size:.88rem;" id="classCount">Loading…</p>
+        </div>
+        <button class="btn btn-primary" id="addClassBtn">➕ New Class</button>
+      </div>
+
+      <div id="pageAlert" class="alert hidden"></div>
+
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Class Name</th>
+                <th>Course Code</th>
+                <th>Teacher</th>
+                <th>Students</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="classesBody">
+              <tr><td colspan="5" class="text-grey">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Class Modal -->
+<div class="modal-overlay hidden" id="classModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h2 id="modalTitle">New Class</h2>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div id="modalAlert" class="alert hidden"></div>
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <div class="form-group">
+        <label>Class Name</label>
+        <input type="text" id="f_className"  class="form-control" placeholder="e.g. BSc IT Year 2 – Group A" />
+      </div>
+      <div class="form-group">
+        <label>Course Code</label>
+        <input type="text" id="f_courseCode" class="form-control" placeholder="e.g. CIIT 152" />
+      </div>
+      <div class="form-group">
+        <label>Assign Teacher</label>
+        <select id="f_teacher" class="form-control">
+          <option value="">— Select a teacher —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Enroll Students</label>
+        <div class="multi-select-wrap" id="studentCheckboxes">
+          <p style="color:var(--grey);font-size:.85rem;padding:.3rem;">Loading students…</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:.5rem;">
+        <button class="btn btn-ghost"   id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save Class</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay hidden" id="deleteModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <h2>Delete Class</h2>
+      <button class="modal-close" id="deleteClose">✕</button>
+    </div>
+    <p style="margin-bottom:1.2rem;color:var(--grey);">
+      Delete <strong id="deleteClassName"></strong>? Past sessions and attendance records will be preserved.
+    </p>
+    <div style="display:flex;gap:.6rem;justify-content:flex-end;">
+      <button class="btn btn-ghost"  id="deleteCancelBtn">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db } from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+  import {
+    collection, getDocs, addDoc, updateDoc, deleteDoc,
+    doc, query, where, orderBy, serverTimestamp, getDoc, writeBatch
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  guardPage("admin");
+  attachLogout("logoutBtn");
+
+  document.getElementById("hamburger").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("overlay").classList.toggle("show");
+  });
+  document.getElementById("overlay").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  });
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) document.getElementById("topbarUser").textContent = snap.data().name || user.email;
+  });
+
+  let allClasses=[], allTeachers=[], allStudents=[], editingId=null, deleteId=null;
+  const modal=document.getElementById("classModal"), deleteModal=document.getElementById("deleteModal");
+  const modalAlert=document.getElementById("modalAlert"), pageAlert=document.getElementById("pageAlert");
+  const saveBtn=document.getElementById("saveBtn");
+
+  function showAlert(el,msg,type="error") { el.textContent=msg; el.className=`alert alert-${type}`; }
+  function hideAlert(el) { el.className="alert hidden"; }
+
+  // Load teachers + students for modal selectors
+  // NOTE: no orderBy() combined with where() here on purpose — that
+  // combination requires a Firestore composite index. Sorting happens
+  // client-side instead, so this works with zero extra Firestore setup.
+  async function loadUsersForModal() {
+    try {
+      const [tSnap, sSnap] = await Promise.all([
+        getDocs(query(collection(db,"users"), where("role","==","teacher"))),
+        getDocs(query(collection(db,"users"), where("role","==","student")))
+      ]);
+      allTeachers = tSnap.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b) => (a.name||"").localeCompare(b.name||""));
+      allStudents = sSnap.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b) => (a.name||"").localeCompare(b.name||""));
+
+      const sel = document.getElementById("f_teacher");
+      sel.innerHTML = '<option value="">— Select a teacher —</option>';
+      allTeachers.forEach(t => {
+        sel.innerHTML += `<option value="${t.id}">${t.name} (${t.email})</option>`;
+      });
+    } catch (err) {
+      console.error("Failed to load teachers/students for modal:", err);
+      showAlert(pageAlert, "Couldn't load teachers/students list. Check the console for details.");
+    }
+  }
+
+  function populateStudentCheckboxes(selectedIds=[]) {
+    const wrap = document.getElementById("studentCheckboxes");
+    if (!allStudents.length) {
+      wrap.innerHTML='<p style="color:var(--grey);font-size:.85rem;padding:.3rem;">No students registered yet.</p>';
+      return;
+    }
+    wrap.innerHTML = allStudents.map(s => `
+      <label>
+        <input type="checkbox" value="${s.id}" ${selectedIds.includes(s.id)?"checked":""} />
+        ${s.name} <span style="color:var(--grey);font-size:.8rem;">(${s.studentId||s.email})</span>
+      </label>`).join("");
+  }
+
+  function getSelectedStudents() {
+    return [...document.querySelectorAll("#studentCheckboxes input:checked")].map(c=>c.value);
+  }
+
+  async function openModal(cls=null) {
+    editingId = cls ? cls.id : null;
+    document.getElementById("modalTitle").textContent = cls ? "Edit Class" : "New Class";
+    document.getElementById("f_className").value  = cls?.className  || "";
+    document.getElementById("f_courseCode").value = cls?.courseCode || "";
+    document.getElementById("f_teacher").value    = cls?.teacherId  || "";
+    populateStudentCheckboxes(cls?.studentIds || []);
+    hideAlert(modalAlert);
+    modal.classList.remove("hidden");
+  }
+  function closeModal() { modal.classList.add("hidden"); editingId=null; }
+
+  document.getElementById("addClassBtn").addEventListener("click", () => openModal());
+  document.getElementById("modalClose").addEventListener("click",  closeModal);
+  document.getElementById("cancelBtn").addEventListener("click",   closeModal);
+  document.getElementById("deleteClose").addEventListener("click", () => deleteModal.classList.add("hidden"));
+  document.getElementById("deleteCancelBtn").addEventListener("click", () => deleteModal.classList.add("hidden"));
+
+  // ── Load classes ──
+  // This query has no where() clause, so orderBy("className") alone is
+  // fine — single-field indexes are automatic in Firestore.
+  async function loadClasses() {
+    const tbody = document.getElementById("classesBody");
+    try {
+      const snap = await getDocs(query(collection(db,"classes"), orderBy("className")));
+      allClasses = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+      // Teacher name cache
+      const teacherMap = {};
+      allTeachers.forEach(t => { teacherMap[t.id]=t.name; });
+
+      document.getElementById("classCount").textContent =
+        `${allClasses.length} class${allClasses.length!==1?"es":""} created`;
+
+      if (!allClasses.length) {
+        tbody.innerHTML='<tr><td colspan="5" class="text-grey">No classes yet. Create one to get started.</td></tr>'; return;
+      }
+      tbody.innerHTML = allClasses.map(c => {
+        const teacher = teacherMap[c.teacherId] || '—';
+        const count   = (c.studentIds||[]).length;
+        return `<tr>
+          <td><strong>${c.className||"—"}</strong></td>
+          <td><span class="badge badge-admin">${c.courseCode||"—"}</span></td>
+          <td>${teacher}</td>
+          <td>${count} student${count!==1?"s":""}</td>
+          <td><div class="action-btns">
+            <button class="btn btn-outline" style="padding:.35rem .8rem;font-size:.8rem;"
+                    onclick="editClass('${c.id}')">Edit</button>
+            <button class="btn btn-danger"  style="padding:.35rem .8rem;font-size:.8rem;"
+                    onclick="promptDelete('${c.id}','${(c.className||"").replace(/'/g,"\\'")}')">Delete</button>
+          </div></td>
+        </tr>`;
+      }).join("");
+    } catch (err) {
+      console.error("Failed to load classes:", err);
+      document.getElementById("classCount").textContent = "Couldn't load classes.";
+      tbody.innerHTML = '<tr><td colspan="5" class="text-grey">Error loading classes. Check the console for details.</td></tr>';
+    }
+  }
+
+  saveBtn.addEventListener("click", async () => {
+    const className  = document.getElementById("f_className").value.trim();
+    const courseCode = document.getElementById("f_courseCode").value.trim();
+    const teacherId  = document.getElementById("f_teacher").value;
+    const studentIds = getSelectedStudents();
+
+    if (!className) { showAlert(modalAlert,"Class name is required."); return; }
+
+    saveBtn.disabled=true; saveBtn.textContent="Saving…";
+    hideAlert(modalAlert);
+
+    try {
+      const data = { className, courseCode, teacherId, studentIds, updatedAt:serverTimestamp() };
+      if (editingId) {
+        await updateDoc(doc(db,"classes",editingId), data);
+      } else {
+        await addDoc(collection(db,"classes"), { ...data, createdAt:serverTimestamp() });
+      }
+      // Update classIds on each enrolled student
+      const batch = writeBatch(db);
+      allStudents.forEach(s => {
+        const inClass = studentIds.includes(s.id);
+        // Only update if something changed
+        if (editingId) {
+          const newClassIds = inClass
+            ? [...new Set([...(s.classIds||[]), editingId])]
+            : (s.classIds||[]).filter(id=>id!==editingId);
+          if (JSON.stringify(newClassIds) !== JSON.stringify(s.classIds||[])) {
+            batch.update(doc(db,"users",s.id), { classIds: newClassIds });
+          }
+        }
+      });
+      await batch.commit();
+      showAlert(pageAlert, editingId?"Class updated.":"Class created.", "success");
+      closeModal();
+      await loadClasses();
+    } catch(err) {
+      showAlert(modalAlert, err.message);
+    } finally { saveBtn.disabled=false; saveBtn.textContent="Save Class"; }
+  });
+
+  window.editClass = (id) => {
+    const c = allClasses.find(c=>c.id===id);
+    if (c) openModal(c);
+  };
+  window.promptDelete = (id, name) => {
+    deleteId=id;
+    document.getElementById("deleteClassName").textContent=name;
+    deleteModal.classList.remove("hidden");
+  };
+  document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
+    if (!deleteId) return;
+    try {
+      await deleteDoc(doc(db,"classes",deleteId));
+      deleteModal.classList.add("hidden");
+      showAlert(pageAlert,"Class deleted.","success");
+      loadClasses();
+    } catch(err) { showAlert(pageAlert,"Failed: "+err.message); }
+    deleteId=null;
+  });
+
+  // Init — each step now wrapped in try/catch, so a failure in one
+  // doesn't silently block the other from running.
+  await loadUsersForModal();
+  loadClasses();
+</script>
+</body>
+</html>

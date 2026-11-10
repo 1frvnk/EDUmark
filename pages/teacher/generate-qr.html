@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduMark – Generate QR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/style.css" />
+
+  <!-- QR generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    .hamburger { display:none; background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--dark); }
+    @media (max-width:768px) { .hamburger { display:block; } }
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:99; }
+    .overlay.show { display:block; }
+
+    .session-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1.2rem;
+      align-items: start;
+    }
+    @media (max-width: 860px) { .session-layout { grid-template-columns: 1fr; } }
+
+    /* Class picker */
+    .class-picker { display: flex; flex-direction: column; gap: .6rem; }
+    .class-option {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .8rem .9rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .class-option:hover { border-color: var(--primary); background: var(--primary-light); }
+    .class-option.selected { border-color: var(--primary); background: var(--primary-light); }
+    .class-option .name { font-weight: 600; font-size: .92rem; }
+    .class-option .code { font-size: .78rem; color: var(--grey); }
+    .class-option .live-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(52,168,83,.2);
+    }
+
+    /* QR panel */
+    .qr-panel {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center;
+      padding: 2rem 1.5rem;
+    }
+    .qr-panel.idle { color: var(--grey); }
+    .qr-box {
+      background: var(--white);
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      margin-bottom: 1.2rem;
+      display: inline-flex;
+    }
+    .session-meta { font-size: .88rem; color: var(--grey); margin-bottom: 1rem; }
+    .session-meta strong { color: var(--dark); }
+    .live-badge {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: #e6f4ea; color: #2d9348;
+      padding: .3rem .8rem; border-radius: 999px;
+      font-size: .78rem; font-weight: 600; text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+    .live-badge .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #2d9348;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+    .attendee-count { font-size: 2.4rem; font-weight: 700; color: var(--dark); line-height: 1; }
+    .attendee-label { font-size: .8rem; color: var(--grey); margin-top: .3rem; margin-bottom: 1.5rem; }
+
+    .qr-actions { display: flex; gap: .6rem; }
+
+    .empty-hint .icon { font-size: 2.2rem; margin-bottom: .6rem; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Teacher Panel</div>
+    <nav>
+      <a href="dashboard.html"        class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+      <a href="generate-qr.html"      class="nav-link active"><span class="nav-icon">🔳</span> Generate QR</a>
+      <a href="live-attendance.html"  class="nav-link"><span class="nav-icon">📡</span> Live Attendance</a>
+      <a href="my-classes.html"       class="nav-link"><span class="nav-icon">📚</span> My Classes</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">Generate QR</span>
+      </div>
+      <span class="topbar-user" id="topbarUser"></span>
+    </div>
+
+    <div class="content">
+      <div id="pageAlert" class="alert hidden"></div>
+
+      <div class="session-layout">
+        <!-- Class picker -->
+        <div class="card">
+          <h2 style="margin-bottom:1rem;">Pick a Class</h2>
+          <div class="class-picker" id="classPicker">
+            <p class="text-grey" style="font-size:.88rem;">Loading your classes…</p>
+          </div>
+        </div>
+
+        <!-- QR / session panel -->
+        <div class="card" style="min-height:360px;display:flex;align-items:center;justify-content:center;">
+          <div id="qrPanel" class="qr-panel idle">
+            <div class="empty-hint">
+              <div class="icon">🔳</div>
+              <p>Select a class on the left to start or resume an attendance session.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db } from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+  import {
+    collection, getDocs, query, where, addDoc, updateDoc,
+    doc, getDoc, serverTimestamp, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  guardPage("teacher");
+  attachLogout("logoutBtn");
+
+  document.getElementById("hamburger").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("overlay").classList.toggle("show");
+  });
+  document.getElementById("overlay").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  });
+
+  let currentUid = null;
+  let myClasses = [];
+  let activeSessionByClass = {}; // classId → sessionId (for classes with a live session)
+  let selectedClassId = null;
+  let attendeeUnsub = null; // unsubscribe fn for the live attendee-count listener
+
+  const pageAlert = document.getElementById("pageAlert");
+  function showAlert(msg, type = "error") {
+    pageAlert.textContent = msg;
+    pageAlert.className = `alert alert-${type}`;
+  }
+  function hideAlert() { pageAlert.className = "alert hidden"; }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    currentUid = user.uid;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) document.getElementById("topbarUser").textContent = snap.data().name || user.email;
+    loadMyClasses();
+  });
+
+  // ── Load this teacher's classes + flag which already have a live session ──
+  async function loadMyClasses() {
+    const picker = document.getElementById("classPicker");
+    try {
+      const snap = await getDocs(
+        query(collection(db, "classes"), where("teacherId", "==", currentUid))
+      );
+      myClasses = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.className || "").localeCompare(b.className || ""));
+
+      if (!myClasses.length) {
+        picker.innerHTML = '<p class="text-grey" style="font-size:.88rem;">No classes assigned to you yet.</p>';
+        return;
+      }
+
+      // Check for an existing active session per class (one query, filtered client-side —
+      // avoids a where()+where() composite index for a list this small).
+      const sessSnap = await getDocs(
+        query(collection(db, "sessions"), where("teacherId", "==", currentUid))
+      );
+      activeSessionByClass = {};
+      sessSnap.forEach(d => {
+        const s = d.data();
+        if (s.status === "active") activeSessionByClass[s.classId] = d.id;
+      });
+
+      renderPicker();
+    } catch (err) {
+      picker.innerHTML = '<p class="text-grey" style="font-size:.88rem;">Couldn\'t load classes. Check the console for details.</p>';
+      console.error("Load classes error:", err);
+    }
+  }
+
+  function renderPicker() {
+    const picker = document.getElementById("classPicker");
+    picker.innerHTML = myClasses.map(c => `
+      <div class="class-option ${c.id === selectedClassId ? 'selected' : ''}" data-id="${c.id}">
+        <div>
+          <div class="name">${c.className || "—"}</div>
+          <div class="code">${c.courseCode || ""}</div>
+        </div>
+        ${activeSessionByClass[c.id] ? '<span class="live-dot" title="Session live"></span>' : ''}
+      </div>`).join("");
+
+    picker.querySelectorAll(".class-option").forEach(el => {
+      el.addEventListener("click", () => selectClass(el.dataset.id));
+    });
+  }
+
+  function selectClass(classId) {
+    selectedClassId = classId;
+    renderPicker();
+    const existingSessionId = activeSessionByClass[classId];
+    if (existingSessionId) {
+      showActiveSession(classId, existingSessionId);
+    } else {
+      showStartPrompt(classId);
+    }
+  }
+
+  function cls(classId) { return myClasses.find(c => c.id === classId); }
+
+  // ── Idle state: no live session for the selected class yet ──
+  function showStartPrompt(classId) {
+    stopAttendeeListener();
+    const c = cls(classId);
+    const panel = document.getElementById("qrPanel");
+    panel.className = "qr-panel idle";
+    panel.innerHTML = `
+      <div class="empty-hint">
+        <div class="icon">🔳</div>
+        <p style="margin-bottom:1.2rem;"><strong style="color:var(--dark);">${c.className}</strong> has no live session.</p>
+        <button class="btn btn-primary" id="startSessionBtn">▶ Start Session</button>
+      </div>`;
+    document.getElementById("startSessionBtn").addEventListener("click", () => startSession(classId));
+  }
+
+  // ── Start a new session for the selected class ──
+  async function startSession(classId) {
+    hideAlert();
+    const btn = document.getElementById("startSessionBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Starting…"; }
+    try {
+      const ref = await addDoc(collection(db, "sessions"), {
+        classId,
+        teacherId: currentUid,
+        date: serverTimestamp(),
+        status: "active"
+      });
+      activeSessionByClass[classId] = ref.id;
+      renderPicker();
+      showActiveSession(classId, ref.id);
+    } catch (err) {
+      showAlert("Couldn't start session: " + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = "▶ Start Session"; }
+    }
+  }
+
+  // ── Active state: render QR + live attendee count ──
+  function showActiveSession(classId, sessionId) {
+    const c = cls(classId);
+    const panel = document.getElementById("qrPanel");
+    panel.className = "qr-panel";
+    panel.innerHTML = `
+      <span class="live-badge"><span class="dot"></span> Session Live</span>
+      <div class="session-meta"><strong>${c.className}</strong> &nbsp;·&nbsp; ${c.courseCode || ""}</div>
+      <div class="qr-box" id="qrBox"></div>
+      <div class="attendee-count" id="attendeeCount">0</div>
+      <div class="attendee-label">students checked in</div>
+      <div class="qr-actions">
+        <button class="btn btn-danger" id="endSessionBtn">■ End Session</button>
+      </div>`;
+
+    const scanUrl = `${window.location.origin}${window.location.pathname.replace('generate-qr.html', '')}../student/scan.html?session=${sessionId}`;
+    // eslint-disable-next-line no-undef
+    new QRCode(document.getElementById("qrBox"), {
+      text: scanUrl,
+      width: 200,
+      height: 200,
+      colorDark: "#1C2B4A",
+      colorLight: "#FFFFFF"
+    });
+
+    document.getElementById("endSessionBtn").addEventListener("click", () => endSession(classId, sessionId));
+
+    startAttendeeListener(sessionId);
+  }
+
+  // ── Live attendee count via onSnapshot ──
+  function startAttendeeListener(sessionId) {
+    stopAttendeeListener();
+    attendeeUnsub = onSnapshot(
+      query(collection(db, "attendance"), where("sessionId", "==", sessionId)),
+      (snap) => {
+        const el = document.getElementById("attendeeCount");
+        if (el) el.textContent = snap.size;
+      },
+      (err) => console.error("Attendee listener error:", err)
+    );
+  }
+  function stopAttendeeListener() {
+    if (attendeeUnsub) { attendeeUnsub(); attendeeUnsub = null; }
+  }
+
+  // ── End the session ──
+  async function endSession(classId, sessionId) {
+    hideAlert();
+    const btn = document.getElementById("endSessionBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Ending…"; }
+    try {
+      await updateDoc(doc(db, "sessions", sessionId), {
+        status: "closed",
+        closedAt: serverTimestamp()
+      });
+      delete activeSessionByClass[classId];
+      stopAttendeeListener();
+      renderPicker();
+      showStartPrompt(classId);
+      showAlert("Session ended.", "success");
+    } catch (err) {
+      showAlert("Couldn't end session: " + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = "■ End Session"; }
+    }
+  }
+
+  window.addEventListener("beforeunload", stopAttendeeListener);
+</script>
+</body>
+</html>

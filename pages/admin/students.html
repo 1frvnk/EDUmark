@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduMark – Students</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/style.css" />
+  <style>
+    .page-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 1.2rem;
+    }
+    .search-bar {
+      display: flex; gap: .6rem; margin-bottom: 1rem;
+    }
+    .search-bar .form-control { max-width: 320px; }
+    .hamburger {
+      display: none; background: none; border: none;
+      font-size: 1.4rem; cursor: pointer; color: var(--dark);
+    }
+    @media (max-width: 768px) { .hamburger { display: block; } }
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 99; }
+    .overlay.show { display: block; }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--primary-light); color: var(--primary-dark);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .8rem; margin-right: .5rem;
+    }
+    .action-btns { display: flex; gap: .4rem; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Admin Panel</div>
+    <nav>
+      <a href="dashboard.html"  class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+      <a href="students.html"   class="nav-link active"><span class="nav-icon">🎓</span> Students</a>
+      <a href="teachers.html"   class="nav-link"><span class="nav-icon">👩‍🏫</span> Teachers</a>
+      <a href="classes.html"    class="nav-link"><span class="nav-icon">📚</span> Classes</a>
+      <a href="reports.html"    class="nav-link"><span class="nav-icon">📊</span> Reports</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6); justify-content:flex-start; gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">Manage Students</span>
+      </div>
+      <span class="topbar-user" id="topbarUser"></span>
+    </div>
+
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <h1 style="font-size:1.3rem;">Students</h1>
+          <p class="text-grey" style="font-size:.88rem;" id="studentCount">Loading…</p>
+        </div>
+        <button class="btn btn-primary" id="addStudentBtn">➕ Add Student</button>
+      </div>
+
+      <!-- Search -->
+      <div class="search-bar">
+        <input type="text" id="searchInput" class="form-control"
+               placeholder="Search by name or email…" />
+      </div>
+
+      <!-- Alert -->
+      <div id="pageAlert" class="alert hidden"></div>
+
+      <!-- Table -->
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Email</th>
+                <th>Student ID</th>
+                <th>Classes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="studentsBody">
+              <tr><td colspan="5" class="text-grey">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add / Edit Modal ── -->
+<div class="modal-overlay hidden" id="studentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Add Student</h2>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div id="modalAlert" class="alert hidden"></div>
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="f_name" class="form-control" placeholder="e.g. Kwame Mensah" />
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="f_email" class="form-control" placeholder="student@gctu.edu.gh" />
+      </div>
+      <div class="form-group">
+        <label>Student ID</label>
+        <input type="text" id="f_sid" class="form-control" placeholder="e.g. GCTU/2024/001" />
+      </div>
+      <div class="form-group" id="passwordGroup">
+        <label>Password <span style="color:var(--grey);font-weight:400;">(min 6 chars)</span></label>
+        <input type="password" id="f_password" class="form-control" placeholder="Temporary password" />
+      </div>
+      <div style="display:flex; gap:.6rem; justify-content:flex-end; margin-top:.5rem;">
+        <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn">Save Student</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Confirm Modal ── -->
+<div class="modal-overlay hidden" id="deleteModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <h2>Delete Student</h2>
+      <button class="modal-close" id="deleteClose">✕</button>
+    </div>
+    <p style="margin-bottom:1.2rem; color:var(--grey);">
+      Are you sure you want to remove <strong id="deleteStudentName"></strong>?
+      Their attendance records will be preserved.
+    </p>
+    <div style="display:flex; gap:.6rem; justify-content:flex-end;">
+      <button class="btn btn-ghost" id="deleteCancelBtn">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db }   from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+  import {
+    collection, getDocs, updateDoc, deleteDoc, setDoc,
+    doc, query, where, serverTimestamp, getDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import {
+    createUserWithEmailAndPassword, getAuth
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  guardPage("admin");
+  attachLogout("logoutBtn");
+
+  // Mobile sidebar
+  document.getElementById("hamburger").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("overlay").classList.toggle("show");
+  });
+  document.getElementById("overlay").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  });
+
+  // Topbar user
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) document.getElementById("topbarUser").textContent = snap.data().name || user.email;
+  });
+
+  // ── State ──
+  let allStudents = [];
+  let editingId   = null;
+  let deleteId    = null;
+
+  // ── UI refs ──
+  const modal        = document.getElementById("studentModal");
+  const deleteModal  = document.getElementById("deleteModal");
+  const modalTitle   = document.getElementById("modalTitle");
+  const modalAlert   = document.getElementById("modalAlert");
+  const pageAlert    = document.getElementById("pageAlert");
+  const saveBtn      = document.getElementById("saveBtn");
+  const pwGroup      = document.getElementById("passwordGroup");
+
+  // ── Helpers ──
+  function showAlert(el, msg, type = "error") {
+    el.textContent = msg;
+    el.className   = `alert alert-${type}`;
+  }
+  function hideAlert(el) { el.className = "alert hidden"; }
+  function openModal(student = null) {
+    editingId = student ? student.id : null;
+    modalTitle.textContent = student ? "Edit Student" : "Add Student";
+    document.getElementById("f_name").value     = student?.name     || "";
+    document.getElementById("f_email").value    = student?.email    || "";
+    document.getElementById("f_sid").value      = student?.studentId || "";
+    document.getElementById("f_password").value = "";
+    // Hide password field when editing (can't change via this form)
+    pwGroup.style.display = student ? "none" : "flex";
+    hideAlert(modalAlert);
+    modal.classList.remove("hidden");
+  }
+  function closeModal() { modal.classList.add("hidden"); editingId = null; }
+
+  document.getElementById("addStudentBtn").addEventListener("click", () => openModal());
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("cancelBtn").addEventListener("click", closeModal);
+  document.getElementById("deleteClose").addEventListener("click",  () => deleteModal.classList.add("hidden"));
+  document.getElementById("deleteCancelBtn").addEventListener("click", () => deleteModal.classList.add("hidden"));
+
+  // ── Load students ──
+  // NOTE: no orderBy() here on purpose — combining where() + orderBy() on
+  // different fields requires a Firestore composite index. We sort
+  // client-side instead so this works with zero extra Firestore setup.
+  async function loadStudents() {
+    const tbody = document.getElementById("studentsBody");
+    try {
+      const snap = await getDocs(
+        query(collection(db, "users"), where("role", "==", "student"))
+      );
+      allStudents = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+      document.getElementById("studentCount").textContent =
+        `${allStudents.length} student${allStudents.length !== 1 ? "s" : ""} registered`;
+      renderTable(allStudents);
+    } catch (err) {
+      console.error("Failed to load students:", err);
+      document.getElementById("studentCount").textContent = "Couldn't load students.";
+      tbody.innerHTML = '<tr><td colspan="5" class="text-grey">Error loading students. Check the console for details.</td></tr>';
+    }
+  }
+
+  function renderTable(students) {
+    const tbody = document.getElementById("studentsBody");
+    if (!students.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-grey">No students found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = students.map(s => {
+      const initials = (s.name || "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+      const classes  = (s.classIds || []).length;
+      return `<tr>
+        <td><span class="avatar">${initials}</span><strong>${s.name || "—"}</strong></td>
+        <td style="color:var(--grey)">${s.email || "—"}</td>
+        <td>${s.studentId || "—"}</td>
+        <td>${classes} class${classes !== 1 ? "es" : ""}</td>
+        <td>
+          <div class="action-btns">
+            <button class="btn btn-outline" style="padding:.35rem .8rem;font-size:.8rem;"
+                    onclick="editStudent('${s.id}')">Edit</button>
+            <button class="btn btn-danger" style="padding:.35rem .8rem;font-size:.8rem;"
+                    onclick="promptDelete('${s.id}','${(s.name||"").replace(/'/g,"\\'")}')">Delete</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  // ── Search ──
+  document.getElementById("searchInput").addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase();
+    renderTable(allStudents.filter(s =>
+      (s.name || "").toLowerCase().includes(q) ||
+      (s.email || "").toLowerCase().includes(q)
+    ));
+  });
+
+  // ── Save (add / edit) ──
+  saveBtn.addEventListener("click", async () => {
+    const name     = document.getElementById("f_name").value.trim();
+    const email    = document.getElementById("f_email").value.trim();
+    const studentId = document.getElementById("f_sid").value.trim();
+    const password = document.getElementById("f_password").value;
+
+    if (!name || !email) { showAlert(modalAlert, "Name and email are required."); return; }
+    if (!editingId && !password) { showAlert(modalAlert, "Password is required for new students."); return; }
+    if (!editingId && password.length < 6) { showAlert(modalAlert, "Password must be at least 6 characters."); return; }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+    hideAlert(modalAlert);
+
+    try {
+      if (editingId) {
+        // Update existing Firestore doc only
+        await updateDoc(doc(db, "users", editingId), { name, email, studentId });
+        showAlert(pageAlert, "Student updated successfully.", "success");
+      } else {
+        // Create Firebase Auth account
+        const secondaryAuth = getAuth();
+        const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+
+        // Use the UID as the document ID — NOT addDoc
+        await setDoc(doc(db, "users", cred.user.uid), {
+          uid: cred.user.uid,
+          name, email, studentId,
+          role: "student",
+          classIds: [],
+          createdAt: serverTimestamp()
+        });
+        showAlert(pageAlert, `Student "${name}" added successfully.`, "success");
+      }
+      closeModal();
+      loadStudents();
+    } catch (err) {
+      let msg = err.message;
+      if (err.code === "auth/email-already-in-use") msg = "This email is already registered.";
+      showAlert(modalAlert, msg);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save Student";
+    }
+  });
+
+  // ── Edit ──
+  window.editStudent = (id) => {
+    const s = allStudents.find(s => s.id === id);
+    if (s) openModal(s);
+  };
+
+  // ── Delete prompt ──
+  window.promptDelete = (id, name) => {
+    deleteId = id;
+    document.getElementById("deleteStudentName").textContent = name;
+    deleteModal.classList.remove("hidden");
+  };
+
+  document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
+    if (!deleteId) return;
+    try {
+      await deleteDoc(doc(db, "users", deleteId));
+      deleteModal.classList.add("hidden");
+      showAlert(pageAlert, "Student removed.", "success");
+      loadStudents();
+    } catch (err) {
+      showAlert(pageAlert, "Failed to delete: " + err.message);
+    }
+    deleteId = null;
+  });
+
+  loadStudents();
+</script>
+</body>
+</html>
