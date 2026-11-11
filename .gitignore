@@ -67,3 +67,26 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+# Firebase private credentials
+serviceAccountKey.json
+service-account.json
+*-service-account*.json
+firebase-adminsdk-*.json
+
+# Environment variables
+.env.*
+!.env.example
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local editor settings
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
