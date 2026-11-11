@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMark – My Attendance</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="../../css/style.css">
+
+  <style>
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: var(--dark);
+    }
+
+    @media (max-width: 768px) {
+      .hamburger { display: block; }
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 99;
+    }
+
+    .overlay.show { display: block; }
+
+    .attendance-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .summary-card {
+      padding: 1.3rem;
+    }
+
+    .summary-card p {
+      color: var(--grey);
+      font-size: .85rem;
+      margin-bottom: .5rem;
+    }
+
+    .summary-card h2 {
+      font-size: 1.8rem;
+      margin: 0;
+    }
+
+    .attendance-table-wrap {
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    .attendance-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+
+    .attendance-table th,
+    .attendance-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      font-size: .9rem;
+    }
+
+    .attendance-table th {
+      color: var(--grey);
+      font-weight: 600;
+      background: #fafafa;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: .35rem .7rem;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+      background: #e6f4ea;
+      color: #24823b;
+    }
+
+    .empty-state,
+    .loading-state,
+    .error-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--grey);
+    }
+
+    .empty-state .icon {
+      font-size: 2.5rem;
+      margin-bottom: .8rem;
+    }
+
+    .page-heading {
+      margin-bottom: 1.5rem;
+    }
+
+    .page-heading p {
+      color: var(--grey);
+      font-size: .9rem;
+    }
+
+    .refresh-btn {
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 600px) {
+      .summary-card h2 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Student Panel</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+
+      <a href="scan.html" class="nav-link">
+        <span class="nav-icon">📷</span> Scan QR
+      </a>
+
+      <a href="attendance.html" class="nav-link active">
+        <span class="nav-icon">📋</span> My Attendance
+      </a>
+      <a href="my-classes.html" class="nav-link">
+  <span class="nav-icon">📚</span> My Classes
+</a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn"
+        style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="main">
+
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">My Attendance</span>
+      </div>
+
+      <span class="topbar-user" id="topbarUser"></span>
+    </div>
+
+    <div class="content">
+
+      <div class="page-heading">
+        <h2>My Attendance History</h2>
+        <p>View your class attendance records and check-in history.</p>
+      </div>
+
+      <!-- SUMMARY CARDS -->
+      <div class="attendance-summary">
+
+        <div class="card summary-card">
+          <p>Total Sessions Attended</p>
+          <h2 id="totalAttendance">0</h2>
+        </div>
+
+        <div class="card summary-card">
+          <p>Classes Attended</p>
+          <h2 id="totalClasses">0</h2>
+        </div>
+
+      </div>
+
+      <!-- ATTENDANCE HISTORY -->
+      <div class="card">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
+
+          <div>
+            <h3>Attendance Records</h3>
+            <p class="text-grey" style="font-size:.85rem;">
+              Your recorded class check-ins.
+            </p>
+          </div>
+
+          <button class="btn btn-ghost refresh-btn" id="refreshBtn">
+            ↻ Refresh
+          </button>
+
+        </div>
+
+        <div id="attendanceContent" class="loading-state">
+          Loading attendance records...
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+
+  import { auth, db } from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+
+  import {
+    collection,
+    getDocs,
+    doc,
+    getDoc,
+    query,
+    where
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  import {
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+
+  guardPage("student");
+  attachLogout("logoutBtn");
+
+
+  // MOBILE NAVIGATION
+
+  document.getElementById("hamburger").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("overlay").classList.toggle("show");
+  });
+
+  document.getElementById("overlay").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  });
+
+
+  const attendanceContent = document.getElementById("attendanceContent");
+
+  let currentUid = null;
+
+
+  // AUTHENTICATION
+
+  onAuthStateChanged(auth, async (user) => {
+
+    if (!user) {
+      attendanceContent.innerHTML = `
+        <div class="error-state">
+          Please sign in with your student account.
+        </div>
+      `;
+      return;
+    }
+
+    try {
+
+      currentUid = user.uid;
+
+      const userSnap = await getDoc(doc(db, "users", currentUid));
+
+      if (!userSnap.exists() || userSnap.data().role !== "student") {
+        attendanceContent.innerHTML = `
+          <div class="error-state">
+            Student account not found.
+          </div>
+        `;
+        return;
+      }
+
+      document.getElementById("topbarUser").textContent =
+        userSnap.data().name || user.email || "Student";
+
+      await loadAttendance();
+
+    } catch (error) {
+
+      console.error("Student authentication error:", error);
+
+      attendanceContent.innerHTML = `
+        <div class="error-state">
+          Unable to load your student profile.
+        </div>
+      `;
+
+    }
+
+  });
+
+
+  // LOAD ATTENDANCE RECORDS
+
+  async function loadAttendance() {
+
+    if (!currentUid) return;
+
+    attendanceContent.innerHTML = `
+      <div class="loading-state">
+        Loading attendance records...
+      </div>
+    `;
+
+    try {
+
+      const attendanceQuery = query(
+        collection(db, "attendance"),
+        where("studentId", "==", currentUid)
+      );
+
+      const attendanceSnapshot = await getDocs(attendanceQuery);
+
+      const records = [];
+
+      const classCache = {};
+
+      for (const attendanceDoc of attendanceSnapshot.docs) {
+
+        const data = attendanceDoc.data();
+
+        let className = "Unknown Class";
+
+        if (data.classId) {
+
+          if (classCache[data.classId]) {
+
+            className = classCache[data.classId];
+
+          } else {
+
+            const classSnap = await getDoc(
+              doc(db, "classes", data.classId)
+            );
+
+            if (classSnap.exists()) {
+              className = classSnap.data().className || "Unnamed Class";
+            }
+
+            classCache[data.classId] = className;
+
+          }
+
+        }
+
+        records.push({
+          id: attendanceDoc.id,
+          className,
+          checkedInAt: data.checkedInAt
+        });
+
+      }
+
+
+      // SORT NEWEST FIRST
+
+      records.sort((a, b) => {
+
+        const dateA = a.checkedInAt?.toMillis?.() || 0;
+        const dateB = b.checkedInAt?.toMillis?.() || 0;
+
+        return dateB - dateA;
+
+      });
+
+
+      // UPDATE SUMMARY
+
+      document.getElementById("totalAttendance").textContent =
+        records.length;
+
+      const uniqueClasses = new Set(
+        records.map(record => record.className)
+      );
+
+      document.getElementById("totalClasses").textContent =
+        uniqueClasses.size;
+
+
+      // EMPTY STATE
+
+      if (records.length === 0) {
+
+        attendanceContent.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📋</div>
+            <h3>No Attendance Records Yet</h3>
+            <p>Your attendance history will appear here after you check in to a class.</p>
+            <a href="scan.html" class="btn btn-primary" style="margin-top:1rem;">
+              Scan QR Code
+            </a>
+          </div>
+        `;
+
+        return;
+
+      }
+
+
+      // RENDER TABLE
+
+      attendanceContent.innerHTML = `
+
+        <div class="attendance-table-wrap">
+
+          <table class="attendance-table">
+
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Class</th>
+                <th>Date</th>
+                <th>Check-in Time</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+
+              ${records.map((record, index) => {
+
+                const date = record.checkedInAt?.toDate
+                  ? record.checkedInAt.toDate()
+                  : null;
+
+                const dateText = date
+                  ? date.toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric"
+                    })
+                  : "Pending";
+
+                const timeText = date
+                  ? date.toLocaleTimeString("en-GB", {
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })
+                  : "Pending";
+
+                return `
+
+                  <tr>
+
+                    <td>${index + 1}</td>
+
+                    <td>${escapeHTML(record.className)}</td>
+
+                    <td>${dateText}</td>
+
+                    <td>${timeText}</td>
+
+                    <td>
+                      <span class="status-badge">
+                        Present
+                      </span>
+                    </td>
+
+                  </tr>
+
+                `;
+
+              }).join("")}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      `;
+
+    } catch (error) {
+
+      console.error("Attendance loading error:", error);
+
+      attendanceContent.innerHTML = `
+        <div class="error-state">
+          <h3>Unable to Load Attendance</h3>
+          <p>We couldn't retrieve your attendance records. Please refresh and try again.</p>
+        </div>
+      `;
+
+    }
+
+  }
+
+
+  // HTML ESCAPING
+
+  function escapeHTML(value) {
+
+    return String(value).replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
+
+  }
+
+
+  // REFRESH BUTTON
+
+  document.getElementById("refreshBtn").addEventListener("click", loadAttendance);
+
+</script>
+
+</body>
+</html>

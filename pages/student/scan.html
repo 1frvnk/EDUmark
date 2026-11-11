@@ -1,35 +1,67 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduMark – Scan QR</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../css/style.css" />
 
-  <!-- QR camera scanning -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
   <style>
-    .hamburger { display:none; background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--dark); }
-    @media (max-width:768px) { .hamburger { display:block; } }
-    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:99; }
-    .overlay.show { display:block; }
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: var(--dark);
+    }
+
+    @media (max-width: 768px) {
+      .hamburger { display: block; }
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 99;
+    }
+
+    .overlay.show { display: block; }
 
     .scan-wrap {
       max-width: 420px;
       margin: 0 auto;
     }
+
     .stage {
-      display: flex; flex-direction: column; align-items: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       text-align: center;
       padding: 2rem 1.5rem;
     }
-    .stage .icon { font-size: 2.6rem; margin-bottom: .8rem; }
+
+    .stage .icon {
+      font-size: 2.6rem;
+      margin-bottom: .8rem;
+    }
+
     .stage h2 { margin-bottom: .4rem; }
-    .stage p { color: var(--grey); font-size: .9rem; margin-bottom: 1.2rem; }
+
+    .stage p {
+      color: var(--grey);
+      font-size: .9rem;
+      margin-bottom: 1.2rem;
+    }
 
     #qrReader {
       width: 100%;
@@ -38,45 +70,74 @@
       overflow: hidden;
       margin: 0 auto 1rem;
     }
+
     #qrReader video { border-radius: var(--radius); }
 
     .manual-toggle {
-      font-size: .85rem; margin-top: .8rem; cursor: pointer;
-      color: var(--primary); background: none; border: none;
+      font-size: .85rem;
+      margin-top: .8rem;
+      cursor: pointer;
+      color: var(--primary);
+      background: none;
+      border: none;
     }
+
     .manual-form {
-      display: flex; flex-direction: column; gap: .8rem;
-      width: 100%; margin-top: .8rem;
+      display: flex;
+      flex-direction: column;
+      gap: .8rem;
+      width: 100%;
+      margin-top: .8rem;
     }
 
     .status-icon {
-      width: 60px; height: 60px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.8rem; margin-bottom: 1rem;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
     }
-    .status-icon.success { background: #e6f4ea; color: #2d9348; }
-    .status-icon.error   { background: #fce8e6; color: #c62828; }
-    .status-icon.info    { background: var(--primary-light); color: var(--primary-dark); }
 
-    .stage-actions { display: flex; gap: .6rem; flex-wrap: wrap; justify-content: center; }
+    .status-icon.success { background: #e6f4ea; color: #2d9348; }
+    .status-icon.error { background: #fce8e6; color: #c62828; }
+    .status-icon.info { background: var(--primary-light); color: var(--primary-dark); }
+
+    .stage-actions {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
   </style>
 </head>
+
 <body>
 <div class="layout">
+
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">Edu<span>Mark</span></div>
     <div class="sidebar-role">Student Panel</div>
+
     <nav>
-      <a href="dashboard.html"    class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
-      <a href="scan.html"         class="nav-link active"><span class="nav-icon">📷</span> Scan QR</a>
-      <a href="attendance.html"   class="nav-link"><span class="nav-icon">📋</span> My Attendance</a>
+      <a href="dashboard.html" class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
+      <a href="scan.html" class="nav-link active"><span class="nav-icon">📷</span> Scan QR</a>
+      <a href="attendance.html" class="nav-link"><span class="nav-icon">📋</span> My Attendance</a>
+      <a href="my-classes.html" class="nav-link">
+  <span class="nav-icon">📚</span> My Classes
+</a>
     </nav>
+
     <div class="sidebar-footer">
-      <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+      <button class="btn btn-ghost btn-full" id="logoutBtn"
+        style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
         🚪 Logout
       </button>
     </div>
   </aside>
+
   <div class="overlay" id="overlay"></div>
 
   <div class="main">
@@ -98,242 +159,637 @@
       </div>
     </div>
   </div>
+
 </div>
 
 <script type="module">
+
   import { auth, db } from "../../js/firebase-config.js";
   import { guardPage, attachLogout } from "../../js/auth.js";
-  import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  import {
+    doc,
+    getDoc,
+    setDoc,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  import {
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
 
   guardPage("student");
   attachLogout("logoutBtn");
 
+
+  // Mobile navigation
   document.getElementById("hamburger").addEventListener("click", () => {
     document.getElementById("sidebar").classList.toggle("open");
     document.getElementById("overlay").classList.toggle("show");
   });
+
   document.getElementById("overlay").addEventListener("click", () => {
     document.getElementById("sidebar").classList.remove("open");
     document.getElementById("overlay").classList.remove("show");
   });
 
+
   const stage = document.getElementById("scanStage");
+
   let currentUid = null;
-  let studentClassIds = [];
+  let studentData = null;
   let html5QrCode = null;
+  let processingSession = false;
+  let scannerStarting = false;
 
+
+  // Authenticate student and load profile
   onAuthStateChanged(auth, async (user) => {
-    if (!user) return;
-    currentUid = user.uid;
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) {
-      document.getElementById("topbarUser").textContent = snap.data().name || user.email;
-      studentClassIds = snap.data().classIds || [];
+
+    if (!user) {
+      stage.innerHTML = "<p>Please sign in with your student account.</p>";
+      return;
     }
 
-    // A QR pointing straight at this page (e.g. scanned by the phone's
-    // native camera app) arrives as ?session=ID — skip the in-app
-    // scanner and go straight to the confirm step.
-    const sessionParam = new URLSearchParams(window.location.search).get("session");
-    if (sessionParam) {
-      processSession(sessionParam.trim());
-    } else {
-      startScanner();
+    try {
+
+      currentUid = user.uid;
+
+      const studentSnap = await getDoc(doc(db, "users", user.uid));
+
+      if (!studentSnap.exists()) {
+        return renderError(
+          "Student Profile Missing",
+          "Your student profile could not be found. Contact your administrator."
+        );
+      }
+
+      studentData = studentSnap.data();
+
+      if (studentData.role !== "student") {
+        return renderError(
+          "Access Denied",
+          "Please sign in using a student account."
+        );
+      }
+
+      document.getElementById("topbarUser").textContent =
+        studentData.name || user.email || "Student";
+
+      const sessionParam =
+        new URLSearchParams(window.location.search).get("session");
+
+      if (sessionParam) {
+        await processSession(sessionParam.trim());
+      } else {
+        await startScanner();
+      }
+
+    } catch (err) {
+
+      console.error("Student profile loading error:", err);
+
+      renderError(
+        "Profile Error",
+        "We couldn't load your student profile. Please refresh and try again."
+      );
+
     }
+
   });
 
-  // ── Pull a session ID out of whatever the camera decoded ──
-  // The QR encodes a full URL (…/scan.html?session=ID), but fall back
-  // to treating the raw text as the ID itself, in case of a plain-text
-  // code entered manually or a differently-formatted QR.
+
+  // Extract session ID from QR URL or manual input
   function extractSessionId(decodedText) {
+
+    const value = String(decodedText || "").trim();
+
+    if (!value) return "";
+
     try {
-      const url = new URL(decodedText);
+
+      const url = new URL(value);
       const sid = url.searchParams.get("session");
-      if (sid) return sid;
-    } catch (e) { /* not a URL — fall through */ }
-    return decodedText.trim();
+
+      if (sid) return sid.trim();
+
+    } catch (e) {}
+
+    return value;
+
   }
 
-  // ── Camera scanner view ──
-  function startScanner() {
+
+  // Camera scanner
+  async function startScanner() {
+
+    if (scannerStarting) return;
+
+    processingSession = false;
+
+    await stopScanner();
+
     stage.innerHTML = `
       <div class="icon">📷</div>
       <h2>Scan Class QR Code</h2>
       <p>Point your camera at the QR code your teacher is showing.</p>
       <div id="qrReader"></div>
-      <button class="manual-toggle" id="manualToggleBtn">Enter code manually instead</button>
+      <button class="manual-toggle" id="manualToggleBtn">
+        Enter code manually instead
+      </button>
     `;
-    document.getElementById("manualToggleBtn").addEventListener("click", showManualEntry);
 
-    html5QrCode = new Html5Qrcode("qrReader");
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: 230 },
-      (decodedText) => {
-        stopScanner();
-        processSession(extractSessionId(decodedText));
-      },
-      () => { /* per-frame scan misses — ignore, keep scanning */ }
-    ).catch((err) => {
-      console.error("Camera start error:", err);
-      showCameraError();
-    });
-  }
+    document.getElementById("manualToggleBtn")
+      .addEventListener("click", showManualEntry);
 
-  function stopScanner() {
-    if (html5QrCode) {
-      html5QrCode.stop().catch(() => {}).finally(() => { html5QrCode = null; });
+    if (typeof Html5Qrcode === "undefined") {
+      return showCameraError();
     }
+
+    scannerStarting = true;
+
+    const scanner = new Html5Qrcode("qrReader");
+    html5QrCode = scanner;
+
+    try {
+
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 230 },
+
+        async (decodedText) => {
+
+          if (processingSession) return;
+
+          processingSession = true;
+
+          const sessionId = extractSessionId(decodedText);
+
+          console.log("EduMark QR detected:", decodedText);
+          console.log("EduMark extracted session ID:", sessionId);
+
+          if (!sessionId) {
+
+            processingSession = false;
+
+            renderError(
+              "Invalid QR Code",
+              "We couldn't extract an attendance session from this QR code."
+            );
+
+            return;
+
+          }
+
+          try {
+
+            // Stop camera completely before changing the scanner screen
+            await stopScanner();
+
+            await processSession(sessionId);
+
+          } catch (err) {
+
+            console.error("QR processing error:", err);
+
+            processingSession = false;
+
+            renderError(
+              "Scanning Error",
+              "We couldn't process this QR code. Please try again."
+            );
+
+          }
+
+        },
+
+        () => {}
+
+      );
+
+    } catch (err) {
+
+      console.error("Camera start error:", err);
+
+      await stopScanner();
+
+      showCameraError();
+
+    } finally {
+
+      scannerStarting = false;
+
+    }
+
   }
+
+
+  // Stop camera and wait for it to finish
+  async function stopScanner() {
+
+    const scanner = html5QrCode;
+
+    if (!scanner) return;
+
+    html5QrCode = null;
+
+    try {
+
+      const state = scanner.getState();
+
+      // State 2 means the scanner is scanning
+      if (state === 2) {
+        await scanner.stop();
+      }
+
+    } catch (err) {
+
+      console.warn("Scanner stop notice:", err);
+
+    }
+
+  }
+
 
   function showCameraError() {
+
     stage.innerHTML = `
       <div class="status-icon error">🚫</div>
       <h2>Camera Unavailable</h2>
-      <p>We couldn't access your camera. You can still check in by entering the session code shown on screen.</p>
+      <p>We couldn't access your camera. Enter the session code or link instead.</p>
       <div id="manualEntryHost"></div>
     `;
+
     renderManualForm(document.getElementById("manualEntryHost"));
+
   }
 
+
   function showManualEntry() {
+
     stopScanner();
+
+    processingSession = false;
+
     stage.innerHTML = `
       <div class="icon">⌨️</div>
       <h2>Enter Session Code</h2>
       <p>Type or paste the code or link your teacher shared.</p>
       <div id="manualEntryHost"></div>
-      <button class="manual-toggle" id="backToScanBtn">Use camera instead</button>
+      <button class="manual-toggle" id="backToScanBtn">
+        Use camera instead
+      </button>
     `;
+
     renderManualForm(document.getElementById("manualEntryHost"));
-    document.getElementById("backToScanBtn").addEventListener("click", startScanner);
+
+    document.getElementById("backToScanBtn")
+      .addEventListener("click", startScanner);
+
   }
+
 
   function renderManualForm(host) {
+
     host.innerHTML = `
       <div class="manual-form">
-        <input type="text" id="manualInput" class="form-control" placeholder="Session code or link" />
-        <button class="btn btn-primary" id="manualSubmitBtn">Continue</button>
-      </div>`;
-    document.getElementById("manualSubmitBtn").addEventListener("click", () => {
-      const val = document.getElementById("manualInput").value.trim();
-      if (!val) return;
-      processSession(extractSessionId(val));
-    });
+        <input
+          type="text"
+          id="manualInput"
+          class="form-control"
+          placeholder="Session code or link"
+        />
+        <button class="btn btn-primary" id="manualSubmitBtn">
+          Continue
+        </button>
+      </div>
+    `;
+
+    document.getElementById("manualSubmitBtn")
+      .addEventListener("click", async () => {
+
+        const val = document.getElementById("manualInput").value.trim();
+
+        if (!val) return;
+
+        processingSession = true;
+
+        await processSession(extractSessionId(val));
+
+      });
+
   }
 
-  // ── Validate the session, then show a confirm step ──
+
+  // Check enrolment in both student and class records
+  async function isStudentEnrolled(classId) {
+
+    console.log("EduMark enrolment check:", {
+      studentUid: currentUid,
+      classId: classId,
+      studentClassIds: studentData.classIds || []
+    });
+
+    const studentClassIds = Array.isArray(studentData.classIds)
+      ? studentData.classIds.map(id => String(id).trim())
+      : [];
+
+    const studentRecordMatch = studentClassIds.includes(classId);
+
+    const classSnap = await getDoc(doc(db, "classes", classId));
+
+    if (!classSnap.exists()) {
+
+      console.error("EduMark: class document does not exist:", classId);
+
+      return false;
+
+    }
+
+    const classData = classSnap.data();
+
+    const enrolledStudentIds = Array.isArray(classData.studentIds)
+      ? classData.studentIds.map(id => String(id).trim())
+      : [];
+
+    const classRecordMatch = enrolledStudentIds.includes(currentUid);
+
+    console.log("EduMark enrolment result:", {
+      studentRecordMatch,
+      classRecordMatch,
+      enrolledStudentIds,
+      studentClassIds
+    });
+
+    return studentRecordMatch || classRecordMatch;
+
+  }
+
+
+  // Validate session and enrolment
   async function processSession(sessionId) {
-    stopScanner();
-    stage.innerHTML = `<div class="icon">⏳</div><p>Checking session…</p>`;
+
+    if (!sessionId) {
+
+      processingSession = false;
+
+      return renderError(
+        "Invalid QR Code",
+        "No session ID was found in this QR code."
+      );
+
+    }
+
+    stage.innerHTML = `
+      <div class="icon">⏳</div>
+      <p>Checking session and enrolment…</p>
+    `;
 
     try {
+
+      console.log("EduMark checking session:", sessionId);
+
       const sessSnap = await getDoc(doc(db, "sessions", sessionId));
+
       if (!sessSnap.exists()) {
-        return renderError("Invalid Code", "This session code doesn't exist. Ask your teacher for a fresh QR code.");
+
+        processingSession = false;
+
+        return renderError(
+          "Invalid Code",
+          "This session code doesn't exist. Ask your teacher for a fresh QR code."
+        );
+
       }
+
       const session = sessSnap.data();
 
+      console.log("EduMark session details:", session);
+
       if (session.status !== "active") {
-        return renderError("Session Ended", "This attendance session isn't accepting check-ins anymore.");
+
+        processingSession = false;
+
+        return renderError(
+          "Session Ended",
+          "This attendance session isn't accepting check-ins anymore."
+        );
+
       }
-      if (!studentClassIds.includes(session.classId)) {
-        return renderError("Not Enrolled", "You're not enrolled in this class, so this code can't be used.");
+
+      if (!session.classId) {
+
+        processingSession = false;
+
+        return renderError(
+          "Invalid Session",
+          "This session has no class assigned to it."
+        );
+
+      }
+
+      const enrolled = await isStudentEnrolled(session.classId);
+
+      if (!enrolled) {
+
+        processingSession = false;
+
+        return renderError(
+          "Not Enrolled",
+          "Your account is not listed as a student in this class. Please contact your administrator."
+        );
+
       }
 
       const classSnap = await getDoc(doc(db, "classes", session.classId));
-      const className = classSnap.exists() ? (classSnap.data().className || "this class") : "this class";
+
+      const className = classSnap.exists()
+        ? (classSnap.data().className || "this class")
+        : "this class";
 
       const attendanceId = `${sessionId}_${currentUid}`;
+
       const existing = await getDoc(doc(db, "attendance", attendanceId));
+
       if (existing.exists()) {
+
+        processingSession = false;
+
         return renderAlreadyCheckedIn(className);
+
       }
 
       renderConfirm(sessionId, session.classId, className, attendanceId);
+
     } catch (err) {
-      console.error("Session lookup error:", err);
-      renderError("Something Went Wrong", "Couldn't verify this session. Check your connection and try again.");
+
+      console.error("Session verification error:", err);
+
+      processingSession = false;
+
+      if (err.code === "permission-denied") {
+
+        renderError(
+          "Permission Denied",
+          "Firebase denied access while checking your enrolment. Please contact your administrator."
+        );
+
+      } else {
+
+        renderError(
+          "Verification Error",
+          "We couldn't verify your session. Check your internet connection and try again."
+        );
+
+      }
+
     }
+
   }
 
+
+  // Confirmation screen
   function renderConfirm(sessionId, classId, className, attendanceId) {
+
     stage.innerHTML = `
       <div class="status-icon info">✅</div>
       <h2>${className}</h2>
       <p>Confirm your attendance for this session.</p>
+
       <div class="stage-actions">
-        <button class="btn btn-ghost" id="cancelCheckInBtn">Cancel</button>
-        <button class="btn btn-primary" id="checkInBtn">Check In</button>
+        <button class="btn btn-ghost" id="cancelCheckInBtn">
+          Cancel
+        </button>
+
+        <button class="btn btn-primary" id="checkInBtn">
+          Check In
+        </button>
       </div>
     `;
-    document.getElementById("cancelCheckInBtn").addEventListener("click", startScanner);
-    document.getElementById("checkInBtn").addEventListener("click", () =>
-      confirmCheckIn(sessionId, classId, className, attendanceId)
-    );
+
+    document.getElementById("cancelCheckInBtn")
+      .addEventListener("click", startScanner);
+
+    document.getElementById("checkInBtn")
+      .addEventListener("click", () =>
+        confirmCheckIn(sessionId, classId, className, attendanceId)
+      );
+
   }
 
+
+  // Save attendance
   async function confirmCheckIn(sessionId, classId, className, attendanceId) {
+
     const btn = document.getElementById("checkInBtn");
-    btn.disabled = true; btn.textContent = "Checking in…";
+
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.textContent = "Checking in…";
+
     try {
+
       await setDoc(doc(db, "attendance", attendanceId), {
+
         studentId: currentUid,
         sessionId,
         classId,
         checkedInAt: serverTimestamp()
+
       });
+
       renderSuccess(className);
+
     } catch (err) {
+
       console.error("Check-in error:", err);
+
       const msg = err.code === "permission-denied"
-        ? "This session may have just ended, or you're not enrolled in this class."
-        : "Something went wrong while checking you in. Please try again.";
+        ? "Firebase denied this attendance record. Check that the session is still active and your enrolment is valid."
+        : "Something went wrong while recording your attendance. Please try again.";
+
       renderError("Check-in Failed", msg);
+
     }
+
   }
 
+
   function renderSuccess(className) {
+
     stage.innerHTML = `
       <div class="status-icon success">✓</div>
       <h2>You're Checked In</h2>
       <p>Attendance recorded for <strong>${className}</strong>.</p>
+
       <div class="stage-actions">
-        <button class="btn btn-ghost" id="scanAnotherBtn">Scan Another</button>
-        <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
+        <button class="btn btn-ghost" id="scanAnotherBtn">
+          Scan Another
+        </button>
+
+        <a href="dashboard.html" class="btn btn-primary">
+          Back to Dashboard
+        </a>
       </div>
     `;
-    document.getElementById("scanAnotherBtn").addEventListener("click", startScanner);
+
+    document.getElementById("scanAnotherBtn")
+      .addEventListener("click", startScanner);
+
   }
 
+
   function renderAlreadyCheckedIn(className) {
+
     stage.innerHTML = `
       <div class="status-icon info">✓</div>
       <h2>Already Checked In</h2>
       <p>You've already recorded attendance for <strong>${className}</strong> in this session.</p>
+
       <div class="stage-actions">
-        <button class="btn btn-ghost" id="scanAnotherBtn">Scan Another</button>
-        <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
+        <button class="btn btn-ghost" id="scanAnotherBtn">
+          Scan Another
+        </button>
+
+        <a href="dashboard.html" class="btn btn-primary">
+          Back to Dashboard
+        </a>
       </div>
     `;
-    document.getElementById("scanAnotherBtn").addEventListener("click", startScanner);
+
+    document.getElementById("scanAnotherBtn")
+      .addEventListener("click", startScanner);
+
   }
 
+
   function renderError(title, message) {
+
     stage.innerHTML = `
       <div class="status-icon error">✕</div>
       <h2>${title}</h2>
       <p>${message}</p>
+
       <div class="stage-actions">
-        <button class="btn btn-primary" id="retryBtn">Try Again</button>
+        <button class="btn btn-primary" id="retryBtn">
+          Try Again
+        </button>
       </div>
     `;
-    document.getElementById("retryBtn").addEventListener("click", startScanner);
+
+    document.getElementById("retryBtn")
+      .addEventListener("click", startScanner);
+
   }
 
-  window.addEventListener("beforeunload", stopScanner);
+
+  window.addEventListener("beforeunload", () => {
+    stopScanner();
+  });
+
 </script>
 </body>
 </html>
+```

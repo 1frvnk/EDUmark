@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMark – Live Attendance</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/style.css">
+
+  <style>
+    .page-heading {
+      margin-bottom: 1.5rem;
+    }
+
+    .page-heading p {
+      color: var(--grey);
+      margin-top: .4rem;
+      font-size: .9rem;
+    }
+
+    .session-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.2rem;
+    }
+
+    .session-controls select {
+      min-width: 240px;
+      max-width: 100%;
+      padding: .75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--white);
+      color: var(--dark);
+      font: inherit;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: #dcfce7;
+      color: #166534;
+      padding: .35rem .7rem;
+      border-radius: 20px;
+      font-size: .78rem;
+      font-weight: 700;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: #16a34a;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      50% { opacity: .35; }
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .live-stat {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+    }
+
+    .live-stat-label {
+      color: var(--grey);
+      font-size: .85rem;
+    }
+
+    .live-stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-top: .4rem;
+      color: var(--dark);
+    }
+
+    .attendance-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 550px;
+    }
+
+    .attendance-table th,
+    .attendance-table td {
+      padding: .9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: .87rem;
+    }
+
+    .attendance-table th {
+      color: var(--grey);
+      font-weight: 600;
+      background: #f8fafc;
+    }
+
+    .attendance-table td {
+      color: var(--dark);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 1rem;
+    }
+
+    .present-badge {
+      background: #dcfce7;
+      color: #166534;
+      padding: .3rem .65rem;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+
+    .empty-state,
+    .loading-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--grey);
+    }
+
+    .empty-state .icon {
+      font-size: 2.5rem;
+      margin-bottom: .8rem;
+    }
+
+    .session-info {
+      margin-top: .8rem;
+      color: var(--grey);
+      font-size: .85rem;
+    }
+
+    .hamburger {
+      display: none;
+      border: none;
+      background: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 99;
+    }
+
+    .overlay.show {
+      display: block;
+    }
+
+    @media(max-width: 768px) {
+      .hamburger { display: block; }
+      .session-controls select { width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Teacher Panel</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+
+      <a href="generate-qr.html" class="nav-link">
+        <span class="nav-icon">📱</span> Generate QR
+      </a>
+
+      <a href="live-attendance.html" class="nav-link active">
+        <span class="nav-icon">📡</span> Live Attendance
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn"
+        style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">Live Attendance</span>
+      </div>
+
+      <span class="topbar-user" id="topbarUser">Loading...</span>
+    </div>
+
+    <div class="content">
+
+      <div class="page-heading">
+        <h2>Live Attendance Monitor</h2>
+        <p>Monitor student check-ins as they happen.</p>
+      </div>
+
+      <!-- Session selector -->
+      <div class="card">
+        <div class="session-controls">
+          <div>
+            <label for="sessionSelect"><strong>Select Active Session</strong></label>
+            <br><br>
+            <select id="sessionSelect" disabled>
+              <option>Loading sessions...</option>
+            </select>
+          </div>
+
+          <span class="live-badge">
+            <span class="live-dot"></span>
+            LIVE MONITORING
+          </span>
+        </div>
+
+        <div class="session-info" id="sessionInfo">
+          Waiting for an active session...
+        </div>
+      </div>
+
+      <!-- Statistics -->
+      <div class="stats-grid mt-2">
+        <div class="live-stat">
+          <div class="live-stat-label">Students Checked In</div>
+          <div class="live-stat-value" id="attendanceCount">0</div>
+        </div>
+
+        <div class="live-stat">
+          <div class="live-stat-label">Session Status</div>
+          <div class="live-stat-value" id="sessionStatus" style="font-size:1.2rem;">
+            —
+          </div>
+        </div>
+      </div>
+
+      <!-- Attendance table -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+          <h2>Student Check-ins</h2>
+          <span style="font-size:.8rem;color:var(--grey);" id="lastUpdated">
+            Waiting...
+          </span>
+        </div>
+
+        <div class="table-wrap" id="attendanceContainer">
+          <div class="loading-state">
+            Loading attendance...
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+
+  import { auth, db } from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+
+  import {
+    collection,
+    doc,
+    getDoc,
+    onSnapshot,
+    query,
+    where
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  import {
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+
+  // Protect teacher page
+  guardPage("teacher");
+  attachLogout("logoutBtn");
+
+
+  // Mobile sidebar
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("overlay");
+
+  document.getElementById("hamburger").addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+    overlay.classList.toggle("show");
+  });
+
+  overlay.addEventListener("click", () => {
+    sidebar.classList.remove("open");
+    overlay.classList.remove("show");
+  });
+
+
+  // Elements
+  const sessionSelect = document.getElementById("sessionSelect");
+  const sessionInfo = document.getElementById("sessionInfo");
+  const attendanceContainer = document.getElementById("attendanceContainer");
+  const attendanceCount = document.getElementById("attendanceCount");
+  const sessionStatus = document.getElementById("sessionStatus");
+  const lastUpdated = document.getElementById("lastUpdated");
+
+  let currentTeacher = null;
+  let sessionsUnsubscribe = null;
+  let attendanceUnsubscribe = null;
+  let selectedSessionId = null;
+  let sessionData = [];
+
+
+  // Authentication
+  onAuthStateChanged(auth, async (user) => {
+
+    if (!user) return;
+
+    currentTeacher = user;
+
+    try {
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+
+      if (userSnap.exists()) {
+        const teacher = userSnap.data();
+
+        document.getElementById("topbarUser").textContent =
+          teacher.name || user.email;
+      }
+
+      listenForSessions(user.uid);
+
+    } catch (error) {
+      console.error("Teacher profile error:", error);
+      sessionInfo.textContent = "Unable to load teacher profile.";
+    }
+
+  });
+
+
+  // Listen for teacher's sessions
+  function listenForSessions(teacherId) {
+
+    const sessionsQuery = query(
+      collection(db, "sessions"),
+      where("teacherId", "==", teacherId)
+    );
+
+    sessionsUnsubscribe = onSnapshot(sessionsQuery, (snapshot) => {
+
+      sessionData = [];
+
+      snapshot.forEach((sessionDoc) => {
+        const data = sessionDoc.data();
+
+        if (data.status === "active") {
+          sessionData.push({
+            id: sessionDoc.id,
+            ...data
+          });
+        }
+      });
+
+      updateSessionDropdown();
+
+    }, (error) => {
+
+      console.error("Sessions listener error:", error);
+
+      sessionInfo.textContent =
+        "Unable to load sessions. Please check your Firebase permissions.";
+
+    });
+
+  }
+
+
+  // Update dropdown
+  function updateSessionDropdown() {
+
+    const previousSelection = selectedSessionId;
+
+    sessionSelect.innerHTML = "";
+
+    if (!sessionData.length) {
+
+      sessionSelect.disabled = true;
+      sessionSelect.innerHTML =
+        '<option value="">No active sessions</option>';
+
+      selectedSessionId = null;
+      stopAttendanceListener();
+
+      attendanceCount.textContent = "0";
+      sessionStatus.textContent = "No active session";
+      sessionInfo.textContent =
+        "Generate a QR code to start an attendance session.";
+
+      attendanceContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">📭</div>
+          <h3>No Active Sessions</h3>
+          <p>Your active attendance sessions will appear here.</p>
+        </div>
+      `;
+
+      return;
+    }
+
+    sessionSelect.disabled = false;
+
+    sessionData.forEach((session) => {
+
+      const option = document.createElement("option");
+
+      option.value = session.id;
+
+      option.textContent =
+        session.className ||
+        session.classId ||
+        "Attendance Session";
+
+      sessionSelect.appendChild(option);
+
+    });
+
+    const stillExists = sessionData.some(
+      session => session.id === previousSelection
+    );
+
+    selectedSessionId = stillExists
+      ? previousSelection
+      : sessionData[0].id;
+
+    sessionSelect.value = selectedSessionId;
+
+    showSelectedSession();
+
+  }
+
+
+  // Session selection
+  sessionSelect.addEventListener("change", () => {
+
+    selectedSessionId = sessionSelect.value;
+
+    showSelectedSession();
+
+  });
+
+
+  // Display selected session
+  async function showSelectedSession() {
+
+    const session = sessionData.find(
+      item => item.id === selectedSessionId
+    );
+
+    if (!session) return;
+
+    sessionStatus.textContent = "Active";
+
+    sessionInfo.textContent =
+      "Session ID: " + session.id;
+
+    if (session.classId) {
+
+      try {
+
+        const classSnap = await getDoc(
+          doc(db, "classes", session.classId)
+        );
+
+        if (classSnap.exists()) {
+          const classData = classSnap.data();
+
+          sessionInfo.textContent =
+            (classData.className || "Class") +
+            " • " +
+            (classData.courseCode || "No course code") +
+            " • Session ID: " +
+            session.id;
+        }
+
+      } catch (error) {
+        console.warn("Class information error:", error);
+      }
+
+    }
+
+    listenForAttendance(session.id);
+
+  }
+
+
+  // Stop previous attendance listener
+  function stopAttendanceListener() {
+
+    if (attendanceUnsubscribe) {
+      attendanceUnsubscribe();
+      attendanceUnsubscribe = null;
+    }
+
+  }
+
+
+  // Listen for real-time student attendance
+  function listenForAttendance(sessionId) {
+
+    stopAttendanceListener();
+
+    attendanceContainer.innerHTML =
+      '<div class="loading-state">Loading student check-ins...</div>';
+
+    const attendanceQuery = query(
+      collection(db, "attendance"),
+      where("sessionId", "==", sessionId)
+    );
+
+    attendanceUnsubscribe = onSnapshot(
+      attendanceQuery,
+      async (snapshot) => {
+
+        const records = [];
+
+        snapshot.forEach((attendanceDoc) => {
+          records.push({
+            id: attendanceDoc.id,
+            ...attendanceDoc.data()
+          });
+        });
+
+        // Newest check-in first
+        records.sort((a, b) => {
+          const timeA = a.checkedInAt?.toMillis?.() || 0;
+          const timeB = b.checkedInAt?.toMillis?.() || 0;
+
+          return timeB - timeA;
+        });
+
+        attendanceCount.textContent = records.length;
+
+        lastUpdated.textContent =
+          "Updated " + new Date().toLocaleTimeString();
+
+        await renderAttendance(records, sessionId);
+
+      },
+      (error) => {
+
+        console.error("Attendance listener error:", error);
+
+        attendanceContainer.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">⚠️</div>
+            <h3>Unable to load attendance</h3>
+            <p>Check your Firebase permissions and try again.</p>
+          </div>
+        `;
+
+      }
+    );
+
+  }
+
+
+  // Render attendance records
+  async function renderAttendance(records, sessionId) {
+
+    if (sessionId !== selectedSessionId) return;
+
+    if (!records.length) {
+
+      attendanceContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">👨‍🎓</div>
+          <h3>Waiting for Students</h3>
+          <p>Student check-ins will appear here automatically.</p>
+        </div>
+      `;
+
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.className = "attendance-table";
+
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Student Name</th>
+          <th>Student ID</th>
+          <th>Check-in Time</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector("tbody");
+
+    for (let i = 0; i < records.length; i++) {
+
+      if (sessionId !== selectedSessionId) return;
+
+      const record = records[i];
+
+      let studentName = "Unknown Student";
+      let studentId = "Not available";
+
+      try {
+
+        const studentSnap = await getDoc(
+          doc(db, "users", record.studentId)
+        );
+
+        if (studentSnap.exists()) {
+
+          const student = studentSnap.data();
+
+          studentName = student.name || student.email || studentName;
+          studentId = student.studentId || studentId;
+
+        }
+
+      } catch (error) {
+        console.warn("Student information error:", error);
+      }
+
+      const timestamp = record.checkedInAt;
+
+      const checkInTime = timestamp?.toDate
+        ? timestamp.toDate().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          })
+        : "Processing...";
+
+      const row = document.createElement("tr");
+
+      const values = [
+        i + 1,
+        studentName,
+        studentId,
+        checkInTime
+      ];
+
+      values.forEach((value) => {
+
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.appendChild(cell);
+
+      });
+
+      const statusCell = document.createElement("td");
+
+      const badge = document.createElement("span");
+      badge.className = "present-badge";
+      badge.textContent = "Present";
+
+      statusCell.appendChild(badge);
+      row.appendChild(statusCell);
+
+      tbody.appendChild(row);
+
+    }
+
+    if (sessionId !== selectedSessionId) return;
+
+    attendanceContainer.innerHTML = "";
+    attendanceContainer.appendChild(table);
+
+  }
+
+</script>
+
+</body>
+</html>

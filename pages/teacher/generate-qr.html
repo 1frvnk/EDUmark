@@ -94,6 +94,9 @@
       <a href="generate-qr.html"      class="nav-link active"><span class="nav-icon">🔳</span> Generate QR</a>
       <a href="live-attendance.html"  class="nav-link"><span class="nav-icon">📡</span> Live Attendance</a>
       <a href="my-classes.html"       class="nav-link"><span class="nav-icon">📚</span> My Classes</a>
+      <a href="live-attendance.html" class="nav-link">
+  <span class="nav-icon">📡</span> Live Attendance
+</a>
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
@@ -294,15 +297,16 @@
         <button class="btn btn-danger" id="endSessionBtn">■ End Session</button>
       </div>`;
 
-    const scanUrl = `${window.location.origin}${window.location.pathname.replace('generate-qr.html', '')}../student/scan.html?session=${sessionId}`;
-    // eslint-disable-next-line no-undef
-    new QRCode(document.getElementById("qrBox"), {
-      text: scanUrl,
-      width: 200,
-      height: 200,
-      colorDark: "#1C2B4A",
-      colorLight: "#FFFFFF"
-    });
+    const scanUrl = new URL("../student/scan.html", window.location.href);
+scanUrl.searchParams.set("session", sessionId);
+
+new QRCode(document.getElementById("qrBox"), {
+  text: scanUrl.href,
+  width: 200,
+  height: 200,
+  colorDark: "#1C2B4A",
+  colorLight: "#FFFFFF"
+});
 
     document.getElementById("endSessionBtn").addEventListener("click", () => endSession(classId, sessionId));
 

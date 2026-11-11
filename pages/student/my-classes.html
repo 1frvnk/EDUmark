@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduMark – My Classes</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/style.css" />
+
+  <style>
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: var(--dark);
+    }
+
+    @media (max-width: 768px) {
+      .hamburger { display: block; }
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 99;
+    }
+
+    .overlay.show { display: block; }
+
+    .class-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-top: 1.2rem;
+    }
+
+    .class-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.3rem;
+      transition: .2s ease;
+    }
+
+    .class-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .class-icon {
+      width: 45px;
+      height: 45px;
+      border-radius: 12px;
+      background: var(--primary-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+    }
+
+    .class-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: .5rem;
+      color: var(--dark);
+    }
+
+    .course-code {
+      display: inline-block;
+      padding: .3rem .65rem;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 20px;
+      font-size: .78rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .class-detail {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .65rem 0;
+      border-top: 1px solid var(--border);
+      font-size: .85rem;
+    }
+
+    .detail-label { color: var(--grey); }
+    .detail-value {
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--grey);
+    }
+
+    .empty-state .empty-icon {
+      font-size: 2.5rem;
+      margin-bottom: .8rem;
+    }
+
+    .page-heading {
+      margin-bottom: 1.2rem;
+    }
+
+    .page-heading p {
+      color: var(--grey);
+      font-size: .9rem;
+      margin-top: .4rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--grey);
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Student Panel</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+
+      <a href="my-classes.html" class="nav-link active">
+        <span class="nav-icon">📚</span> My Classes
+      </a>
+
+      <a href="scan.html" class="nav-link">
+        <span class="nav-icon">📷</span> Scan QR
+      </a>
+
+      <a href="attendance.html" class="nav-link">
+        <span class="nav-icon">📋</span> My Attendance
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn"
+        style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">My Classes</span>
+      </div>
+
+      <span class="topbar-user" id="topbarUser">Loading…</span>
+    </div>
+
+    <div class="content">
+
+      <div class="page-heading">
+        <h2>My Classes</h2>
+        <p>View the courses you are currently enrolled in.</p>
+      </div>
+
+      <!-- Summary -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📚</div>
+          <div class="stat-label">Enrolled Classes</div>
+          <div class="stat-value" id="classCount">—</div>
+        </div>
+      </div>
+
+      <!-- Classes -->
+      <div class="card mt-2">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+          <h2>Enrolled Courses</h2>
+
+          <button class="btn btn-outline" id="refreshBtn">
+            ↻ Refresh
+          </button>
+        </div>
+
+        <div id="classesContainer" class="loading">
+          Loading your classes…
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+
+  import { auth, db } from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+
+  import {
+    doc,
+    getDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  import {
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+
+  // Protect page
+  guardPage("student");
+  attachLogout("logoutBtn");
+
+
+  // Mobile sidebar
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("overlay");
+  const hamburger = document.getElementById("hamburger");
+
+  hamburger.addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+    overlay.classList.toggle("show");
+  });
+
+  overlay.addEventListener("click", () => {
+    sidebar.classList.remove("open");
+    overlay.classList.remove("show");
+  });
+
+
+  const container = document.getElementById("classesContainer");
+  const classCount = document.getElementById("classCount");
+  const refreshBtn = document.getElementById("refreshBtn");
+
+  let currentUser = null;
+
+
+  // Load logged-in student
+  onAuthStateChanged(auth, async (user) => {
+
+    if (!user) return;
+
+    currentUser = user;
+
+    try {
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+
+      if (!userSnap.exists()) {
+        container.textContent = "Student profile not found.";
+        classCount.textContent = "0";
+        return;
+      }
+
+      const studentData = userSnap.data();
+
+      document.getElementById("topbarUser").textContent =
+        studentData.name || user.email;
+
+      await loadClasses(studentData.classIds || []);
+
+    } catch (error) {
+      console.error("Student profile error:", error);
+      container.textContent = "Unable to load your student profile.";
+    }
+
+  });
+
+
+  // Load enrolled classes
+  async function loadClasses(classIds) {
+
+    container.innerHTML = "";
+    classCount.textContent = classIds.length;
+
+    if (!classIds.length) {
+      showEmptyState();
+      return;
+    }
+
+    container.innerHTML = '<div class="loading">Loading your enrolled classes…</div>';
+
+    const grid = document.createElement("div");
+    grid.className = "class-grid";
+
+    let loadedCount = 0;
+
+    try {
+
+      for (const classId of classIds) {
+
+        try {
+
+          const classSnap = await getDoc(doc(db, "classes", classId));
+
+          if (!classSnap.exists()) {
+            console.warn("Class not found:", classId);
+            continue;
+          }
+
+          const classData = classSnap.data();
+
+          let teacherName = "Not assigned";
+
+          if (classData.teacherId) {
+            try {
+              const teacherSnap = await getDoc(
+                doc(db, "users", classData.teacherId)
+              );
+
+              if (teacherSnap.exists()) {
+                const teacherData = teacherSnap.data();
+                teacherName = teacherData.name || teacherData.email || "Teacher";
+              }
+
+            } catch (teacherError) {
+              console.warn("Could not load teacher:", teacherError);
+            }
+          }
+
+          const card = document.createElement("div");
+          card.className = "class-card";
+
+          const icon = document.createElement("div");
+          icon.className = "class-icon";
+          icon.textContent = "📚";
+
+          const name = document.createElement("div");
+          name.className = "class-name";
+          name.textContent = classData.className || "Unnamed Class";
+
+          const code = document.createElement("span");
+          code.className = "course-code";
+          code.textContent = classData.courseCode || "No course code";
+
+          const teacher = createDetail("Teacher", teacherName);
+          const students = createDetail(
+            "Enrolled Students",
+            (classData.studentIds || []).length
+          );
+
+          card.append(icon, name, code, teacher, students);
+
+          grid.appendChild(card);
+          loadedCount++;
+
+        } catch (classError) {
+          console.error("Class loading error:", classId, classError);
+        }
+
+      }
+
+      container.innerHTML = "";
+
+      if (!loadedCount) {
+        showEmptyState("Your enrolled classes could not be found.");
+        return;
+      }
+
+      container.appendChild(grid);
+
+    } catch (error) {
+      console.error("Classes loading error:", error);
+      container.textContent = "Unable to load your classes. Please try again.";
+    }
+
+  }
+
+
+  // Create class information row
+  function createDetail(label, value) {
+
+    const row = document.createElement("div");
+    row.className = "class-detail";
+
+    const labelEl = document.createElement("span");
+    labelEl.className = "detail-label";
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement("span");
+    valueEl.className = "detail-value";
+    valueEl.textContent = value;
+
+    row.append(labelEl, valueEl);
+
+    return row;
+  }
+
+
+  // Empty state
+  function showEmptyState(message = "You are not enrolled in any classes yet.") {
+
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📚</div>
+        <h3>No Classes Found</h3>
+        <p>${message}</p>
+      </div>
+    `;
+
+  }
+
+
+  // Refresh
+  refreshBtn.addEventListener("click", async () => {
+
+    if (!currentUser) return;
+
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = "Refreshing…";
+
+    try {
+
+      const userSnap = await getDoc(
+        doc(db, "users", currentUser.uid)
+      );
+
+      if (userSnap.exists()) {
+        const studentData = userSnap.data();
+        await loadClasses(studentData.classIds || []);
+      }
+
+    } catch (error) {
+      console.error("Refresh error:", error);
+      container.textContent = "Refresh failed. Please try again.";
+    }
+
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = "↻ Refresh";
+
+  });
+
+</script>
+
+</body>
+</html>
