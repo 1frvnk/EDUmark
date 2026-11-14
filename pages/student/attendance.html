@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
   <link rel="stylesheet" href="../../css/style.css">
 
   <style>
@@ -42,9 +41,7 @@
       margin-bottom: 1.5rem;
     }
 
-    .summary-card {
-      padding: 1.3rem;
-    }
+    .summary-card { padding: 1.3rem; }
 
     .summary-card p {
       color: var(--grey);
@@ -105,29 +102,22 @@
       margin-bottom: .8rem;
     }
 
-    .page-heading {
-      margin-bottom: 1.5rem;
-    }
+    .page-heading { margin-bottom: 1.5rem; }
 
     .page-heading p {
       color: var(--grey);
       font-size: .9rem;
     }
 
-    .refresh-btn {
-      margin-bottom: 1rem;
-    }
+    .refresh-btn { margin-bottom: 1rem; }
 
     @media (max-width: 600px) {
-      .summary-card h2 {
-        font-size: 1.5rem;
-      }
+      .summary-card h2 { font-size: 1.5rem; }
     }
   </style>
 </head>
 
 <body>
-
 <div class="layout">
 
   <aside class="sidebar" id="sidebar">
@@ -146,9 +136,10 @@
       <a href="attendance.html" class="nav-link active">
         <span class="nav-icon">📋</span> My Attendance
       </a>
+
       <a href="my-classes.html" class="nav-link">
-  <span class="nav-icon">📚</span> My Classes
-</a>
+        <span class="nav-icon">📚</span> My Classes
+      </a>
     </nav>
 
     <div class="sidebar-footer">
@@ -162,13 +153,11 @@
   <div class="overlay" id="overlay"></div>
 
   <div class="main">
-
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:.8rem;">
         <button class="hamburger" id="hamburger">☰</button>
         <span class="topbar-title">My Attendance</span>
       </div>
-
       <span class="topbar-user" id="topbarUser"></span>
     </div>
 
@@ -179,9 +168,7 @@
         <p>View your class attendance records and check-in history.</p>
       </div>
 
-      <!-- SUMMARY CARDS -->
       <div class="attendance-summary">
-
         <div class="card summary-card">
           <p>Total Sessions Attended</p>
           <h2 id="totalAttendance">0</h2>
@@ -191,14 +178,10 @@
           <p>Classes Attended</p>
           <h2 id="totalClasses">0</h2>
         </div>
-
       </div>
 
-      <!-- ATTENDANCE HISTORY -->
       <div class="card">
-
         <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
-
           <div>
             <h3>Attendance Records</h3>
             <p class="text-grey" style="font-size:.85rem;">
@@ -209,13 +192,11 @@
           <button class="btn btn-ghost refresh-btn" id="refreshBtn">
             ↻ Refresh
           </button>
-
         </div>
 
         <div id="attendanceContent" class="loading-state">
           Loading attendance records...
         </div>
-
       </div>
 
     </div>
@@ -223,7 +204,6 @@
 </div>
 
 <script type="module">
-
   import { auth, db } from "../../js/firebase-config.js";
   import { guardPage, attachLogout } from "../../js/auth.js";
 
@@ -240,54 +220,42 @@
     onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-
   guardPage("student");
   attachLogout("logoutBtn");
 
-
-  // MOBILE NAVIGATION
+  // Mobile navigation
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("overlay");
 
   document.getElementById("hamburger").addEventListener("click", () => {
-    document.getElementById("sidebar").classList.toggle("open");
-    document.getElementById("overlay").classList.toggle("show");
+    sidebar.classList.toggle("open");
+    overlay.classList.toggle("show");
   });
 
-  document.getElementById("overlay").addEventListener("click", () => {
-    document.getElementById("sidebar").classList.remove("open");
-    document.getElementById("overlay").classList.remove("show");
+  overlay.addEventListener("click", () => {
+    sidebar.classList.remove("open");
+    overlay.classList.remove("show");
   });
-
 
   const attendanceContent = document.getElementById("attendanceContent");
 
   let currentUid = null;
+  let loading = false;
 
-
-  // AUTHENTICATION
-
+  // Authentication
   onAuthStateChanged(auth, async (user) => {
-
     if (!user) {
-      attendanceContent.innerHTML = `
-        <div class="error-state">
-          Please sign in with your student account.
-        </div>
-      `;
+      showError("Please sign in with your student account.");
       return;
     }
 
     try {
-
       currentUid = user.uid;
 
       const userSnap = await getDoc(doc(db, "users", currentUid));
 
       if (!userSnap.exists() || userSnap.data().role !== "student") {
-        attendanceContent.innerHTML = `
-          <div class="error-state">
-            Student account not found.
-          </div>
-        `;
+        showError("Student account not found.");
         return;
       }
 
@@ -297,25 +265,20 @@
       await loadAttendance();
 
     } catch (error) {
-
       console.error("Student authentication error:", error);
-
-      attendanceContent.innerHTML = `
-        <div class="error-state">
-          Unable to load your student profile.
-        </div>
-      `;
-
+      showError("Unable to load your student profile.");
     }
-
   });
 
-
-  // LOAD ATTENDANCE RECORDS
-
+  // Load attendance
   async function loadAttendance() {
+    if (!currentUid || loading) return;
 
-    if (!currentUid) return;
+    loading = true;
+
+    const refreshBtn = document.getElementById("refreshBtn");
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = "Loading...";
 
     attendanceContent.innerHTML = `
       <div class="loading-state">
@@ -324,7 +287,6 @@
     `;
 
     try {
-
       const attendanceQuery = query(
         collection(db, "attendance"),
         where("studentId", "==", currentUid)
@@ -333,75 +295,65 @@
       const attendanceSnapshot = await getDocs(attendanceQuery);
 
       const records = [];
-
       const classCache = {};
 
+      // Fetch class names
       for (const attendanceDoc of attendanceSnapshot.docs) {
-
         const data = attendanceDoc.data();
 
         let className = "Unknown Class";
 
         if (data.classId) {
-
           if (classCache[data.classId]) {
-
             className = classCache[data.classId];
-
           } else {
+            try {
+              const classSnap = await getDoc(
+                doc(db, "classes", data.classId)
+              );
 
-            const classSnap = await getDoc(
-              doc(db, "classes", data.classId)
-            );
-
-            if (classSnap.exists()) {
-              className = classSnap.data().className || "Unnamed Class";
+              if (classSnap.exists()) {
+                className =
+                  classSnap.data().className || "Unnamed Class";
+              }
+            } catch (error) {
+              console.warn("Unable to load class:", data.classId, error);
             }
 
             classCache[data.classId] = className;
-
           }
-
         }
 
         records.push({
           id: attendanceDoc.id,
+          classId: data.classId || "",
           className,
-          checkedInAt: data.checkedInAt
+          checkedInAt: data.checkedInAt || null
         });
-
       }
 
-
-      // SORT NEWEST FIRST
-
+      // Newest first
       records.sort((a, b) => {
-
         const dateA = a.checkedInAt?.toMillis?.() || 0;
         const dateB = b.checkedInAt?.toMillis?.() || 0;
-
         return dateB - dateA;
-
       });
 
-
-      // UPDATE SUMMARY
-
+      // Summary
       document.getElementById("totalAttendance").textContent =
         records.length;
 
       const uniqueClasses = new Set(
-        records.map(record => record.className)
+        records
+          .filter(record => record.classId)
+          .map(record => record.classId)
       );
 
       document.getElementById("totalClasses").textContent =
         uniqueClasses.size;
 
-
-      // EMPTY STATE
-
+      // Empty state
       if (records.length === 0) {
-
         attendanceContent.innerHTML = `
           <div class="empty-state">
             <div class="icon">📋</div>
@@ -412,20 +364,13 @@
             </a>
           </div>
         `;
-
         return;
-
       }
 
-
-      // RENDER TABLE
-
+      // Attendance table
       attendanceContent.innerHTML = `
-
         <div class="attendance-table-wrap">
-
           <table class="attendance-table">
-
             <thead>
               <tr>
                 <th>#</th>
@@ -437,9 +382,7 @@
             </thead>
 
             <tbody>
-
               ${records.map((record, index) => {
-
                 const date = record.checkedInAt?.toDate
                   ? record.checkedInAt.toDate()
                   : null;
@@ -460,39 +403,23 @@
                   : "Pending";
 
                 return `
-
                   <tr>
-
                     <td>${index + 1}</td>
-
                     <td>${escapeHTML(record.className)}</td>
-
                     <td>${dateText}</td>
-
                     <td>${timeText}</td>
-
                     <td>
-                      <span class="status-badge">
-                        Present
-                      </span>
+                      <span class="status-badge">Present</span>
                     </td>
-
                   </tr>
-
                 `;
-
               }).join("")}
-
             </tbody>
-
           </table>
-
         </div>
-
       `;
 
     } catch (error) {
-
       console.error("Attendance loading error:", error);
 
       attendanceContent.innerHTML = `
@@ -502,15 +429,15 @@
         </div>
       `;
 
+    } finally {
+      loading = false;
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = "↻ Refresh";
     }
-
   }
 
-
-  // HTML ESCAPING
-
+  // Escape HTML
   function escapeHTML(value) {
-
     return String(value).replace(/[&<>"']/g, char => ({
       "&": "&amp;",
       "<": "&lt;",
@@ -518,15 +445,18 @@
       '"': "&quot;",
       "'": "&#039;"
     })[char]);
-
   }
 
+  function showError(message) {
+    attendanceContent.innerHTML = `
+      <div class="error-state">${escapeHTML(message)}</div>
+    `;
+  }
 
-  // REFRESH BUTTON
-
-  document.getElementById("refreshBtn").addEventListener("click", loadAttendance);
+  // Refresh
+  document.getElementById("refreshBtn")
+    .addEventListener("click", loadAttendance);
 
 </script>
-
 </body>
 </html>

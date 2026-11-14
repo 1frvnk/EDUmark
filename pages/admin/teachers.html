@@ -4,64 +4,186 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EduMark – Teachers</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../css/style.css" />
+
   <style>
-    .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; }
-    .search-bar  { display:flex; gap:.6rem; margin-bottom:1rem; }
-    .search-bar .form-control { max-width:320px; }
-    .hamburger   { display:none; background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--dark); }
-    @media (max-width:768px) { .hamburger { display:block; } }
-    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:99; }
-    .overlay.show { display:block; }
-    .avatar { width:32px; height:32px; border-radius:50%; background:#e8f5e9; color:#2e7d32;
-              display:inline-flex; align-items:center; justify-content:center;
-              font-weight:700; font-size:.8rem; margin-right:.5rem; }
-    .action-btns { display:flex; gap:.4rem; }
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .search-bar {
+      display: flex;
+      gap: .6rem;
+      margin-bottom: 1rem;
+    }
+
+    .search-bar .form-control {
+      max-width: 320px;
+    }
+
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: var(--dark);
+    }
+
+    @media (max-width: 768px) {
+      .hamburger {
+        display: block;
+      }
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 99;
+    }
+
+    .overlay.show {
+      display: block;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #e8f5e9;
+      color: #2e7d32;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: .8rem;
+      margin-right: .5rem;
+    }
+
+    .action-btns {
+      display: flex;
+      gap: .4rem;
+    }
   </style>
 </head>
+
 <body>
+
 <div class="layout">
+
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">Edu<span>Mark</span></div>
     <div class="sidebar-role">Admin Panel</div>
+
     <nav>
-      <a href="dashboard.html"  class="nav-link"><span class="nav-icon">🏠</span> Dashboard</a>
-      <a href="students.html"   class="nav-link"><span class="nav-icon">🎓</span> Students</a>
-      <a href="teachers.html"   class="nav-link active"><span class="nav-icon">👩‍🏫</span> Teachers</a>
-      <a href="classes.html"    class="nav-link"><span class="nav-icon">📚</span> Classes</a>
-      <a href="reports.html"    class="nav-link"><span class="nav-icon">📊</span> Reports</a>
+      <a href="dashboard.html" class="nav-link">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+
+      <a href="students.html" class="nav-link">
+        <span class="nav-icon">🎓</span> Students
+      </a>
+
+      <a href="student-records.html" class="nav-link">
+        <span class="nav-icon">📋</span> Student Records
+      </a>
+
+      <a href="student-approvals.html" class="nav-link">
+        <span class="nav-icon">✅</span> Student Approvals
+      </a>
+
+      <a href="teachers.html" class="nav-link active">
+        <span class="nav-icon">👩‍🏫</span> Teachers
+      </a>
+
+      <a href="classes.html" class="nav-link">
+        <span class="nav-icon">📚</span> Classes
+      </a>
+
+      <a href="programmes.html" class="nav-link">
+        <span class="nav-icon">🎓</span> Programmes
+      </a>
+
+      <a href="levels.html" class="nav-link">
+        <span class="nav-icon">📊</span> Levels
+      </a>
+
+      <a href="courses.html" class="nav-link">
+        <span class="nav-icon">📖</span> Courses
+      </a>
+
+      <a href="academic-years.html" class="nav-link">
+        <span class="nav-icon">📅</span> Academic Years
+      </a>
+
+      <a href="course-offerings.html" class="nav-link">
+        <span class="nav-icon">📚</span> Course Offerings
+      </a>
+
+      <a href="course-assignments.html" class="nav-link">
+        <span class="nav-icon">👨‍🏫</span> Course Assignments
+      </a>
+
+      <a href="reports.html" class="nav-link">
+        <span class="nav-icon">📊</span> Reports
+      </a>
     </nav>
+
     <div class="sidebar-footer">
-      <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+      <button
+        class="btn btn-ghost btn-full"
+        id="logoutBtn"
+        style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;"
+      >
         🚪 Logout
       </button>
     </div>
   </aside>
+
   <div class="overlay" id="overlay"></div>
 
   <div class="main">
+
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:.8rem;">
         <button class="hamburger" id="hamburger">☰</button>
         <span class="topbar-title">Manage Teachers</span>
       </div>
+
       <span class="topbar-user" id="topbarUser"></span>
     </div>
 
     <div class="content">
+
       <div class="page-header">
         <div>
           <h1 style="font-size:1.3rem;">Teachers</h1>
-          <p class="text-grey" style="font-size:.88rem;" id="teacherCount">Loading…</p>
+          <p class="text-grey" style="font-size:.88rem;" id="teacherCount">
+            Loading…
+          </p>
         </div>
-        <button class="btn btn-primary" id="addTeacherBtn">➕ Add Teacher</button>
+
+        <button class="btn btn-primary" id="addTeacherBtn">
+          ➕ Add Teacher
+        </button>
       </div>
 
       <div class="search-bar">
-        <input type="text" id="searchInput" class="form-control" placeholder="Search by name or email…" />
+        <input
+          type="text"
+          id="searchInput"
+          class="form-control"
+          placeholder="Search by name or email…"
+        />
       </div>
 
       <div id="pageAlert" class="alert hidden"></div>
@@ -78,241 +200,692 @@
                 <th>Actions</th>
               </tr>
             </thead>
+
             <tbody id="teachersBody">
-              <tr><td colspan="5" class="text-grey">Loading…</td></tr>
+              <tr>
+                <td colspan="5" class="text-grey">Loading…</td>
+              </tr>
             </tbody>
           </table>
         </div>
       </div>
+
     </div>
   </div>
 </div>
 
-<!-- Add / Edit Modal -->
+
+<!-- ADD / EDIT MODAL -->
+
 <div class="modal-overlay hidden" id="teacherModal">
+
   <div class="modal">
+
     <div class="modal-header">
       <h2 id="modalTitle">Add Teacher</h2>
       <button class="modal-close" id="modalClose">✕</button>
     </div>
+
     <div id="modalAlert" class="alert hidden"></div>
+
     <div style="display:flex;flex-direction:column;gap:1rem;">
+
       <div class="form-group">
         <label>Full Name</label>
-        <input type="text"     id="f_name"     class="form-control" placeholder="e.g. Dr. Ama Owusu" />
+        <input
+          type="text"
+          id="f_name"
+          class="form-control"
+          placeholder="e.g. Dr. Ama Owusu"
+        />
       </div>
+
       <div class="form-group">
         <label>Email Address</label>
-        <input type="email"    id="f_email"    class="form-control" placeholder="lecturer@gctu.edu.gh" />
+        <input
+          type="email"
+          id="f_email"
+          class="form-control"
+          placeholder="lecturer@gctu.edu.gh"
+        />
       </div>
+
       <div class="form-group">
         <label>Staff ID</label>
-        <input type="text"     id="f_staffId"  class="form-control" placeholder="e.g. GCTU-STAFF-042" />
+        <input
+          type="text"
+          id="f_staffId"
+          class="form-control"
+          placeholder="e.g. GCTU-STAFF-042"
+        />
       </div>
+
       <div class="form-group" id="passwordGroup">
-        <label>Password <span style="color:var(--grey);font-weight:400;">(min 6 chars)</span></label>
-        <input type="password" id="f_password" class="form-control" placeholder="Temporary password" />
+        <label>
+          Password
+          <span style="color:var(--grey);font-weight:400;">
+            (minimum 6 characters)
+          </span>
+        </label>
+
+        <input
+          type="password"
+          id="f_password"
+          class="form-control"
+          placeholder="Temporary password"
+        />
       </div>
+
       <div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:.5rem;">
-        <button class="btn btn-ghost"   id="cancelBtn">Cancel</button>
+        <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
         <button class="btn btn-primary" id="saveBtn">Save Teacher</button>
       </div>
+
     </div>
   </div>
 </div>
 
-<!-- Delete Modal -->
+
+<!-- DELETE MODAL -->
+
 <div class="modal-overlay hidden" id="deleteModal">
+
   <div class="modal" style="max-width:380px;">
+
     <div class="modal-header">
       <h2>Remove Teacher</h2>
       <button class="modal-close" id="deleteClose">✕</button>
     </div>
+
     <p style="margin-bottom:1.2rem;color:var(--grey);">
-      Remove <strong id="deleteTeacherName"></strong>? Their classes will need a new teacher assigned.
+      Remove <strong id="deleteTeacherName"></strong>?
+      Their classes will need a new teacher assigned.
     </p>
+
     <div style="display:flex;gap:.6rem;justify-content:flex-end;">
-      <button class="btn btn-ghost"  id="deleteCancelBtn">Cancel</button>
+      <button class="btn btn-ghost" id="deleteCancelBtn">Cancel</button>
       <button class="btn btn-danger" id="confirmDeleteBtn">Remove</button>
     </div>
+
   </div>
 </div>
 
+
 <script type="module">
+
   import { auth, db } from "../../js/firebase-config.js";
-  import { guardPage, attachLogout } from "../../js/auth.js";
+
+  import { guardPage, attachLogout }
+    from "../../js/auth.js";
+
   import {
-    collection, getDocs, updateDoc, deleteDoc, setDoc,
-    doc, query, where, serverTimestamp, getDoc
+    collection,
+    getDocs,
+    updateDoc,
+    deleteDoc,
+    setDoc,
+    doc,
+    query,
+    where,
+    serverTimestamp,
+    getDoc
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { createUserWithEmailAndPassword, getAuth, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  import {
+    createUserWithEmailAndPassword,
+    signOut,
+    getAuth
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  import {
+    initializeApp,
+    deleteApp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+
+  // =========================================
+  // AUTHENTICATION
+  // =========================================
 
   guardPage("admin");
   attachLogout("logoutBtn");
+
+
+  // =========================================
+  // MOBILE SIDEBAR
+  // =========================================
 
   document.getElementById("hamburger").addEventListener("click", () => {
     document.getElementById("sidebar").classList.toggle("open");
     document.getElementById("overlay").classList.toggle("show");
   });
+
   document.getElementById("overlay").addEventListener("click", () => {
     document.getElementById("sidebar").classList.remove("open");
     document.getElementById("overlay").classList.remove("show");
   });
 
-  onAuthStateChanged(auth, async (user) => {
+
+  // =========================================
+  // TOPBAR USER
+  // =========================================
+
+  auth.onAuthStateChanged(async (user) => {
     if (!user) return;
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) document.getElementById("topbarUser").textContent = snap.data().name || user.email;
+
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+
+      if (snap.exists()) {
+        document.getElementById("topbarUser").textContent =
+          snap.data().name || user.email;
+      }
+    } catch (error) {
+      console.error(error);
+    }
   });
 
-  let allTeachers = [], editingId = null, deleteId = null;
-  const modal       = document.getElementById("teacherModal");
+
+  // =========================================
+  // VARIABLES
+  // =========================================
+
+  let allTeachers = [];
+  let editingId = null;
+  let deleteId = null;
+
+  const modal = document.getElementById("teacherModal");
   const deleteModal = document.getElementById("deleteModal");
-  const modalAlert  = document.getElementById("modalAlert");
-  const pageAlert   = document.getElementById("pageAlert");
-  const saveBtn     = document.getElementById("saveBtn");
-  const pwGroup     = document.getElementById("passwordGroup");
+  const modalAlert = document.getElementById("modalAlert");
+  const pageAlert = document.getElementById("pageAlert");
+  const saveBtn = document.getElementById("saveBtn");
+  const pwGroup = document.getElementById("passwordGroup");
 
-  function showAlert(el, msg, type="error") { el.textContent=msg; el.className=`alert alert-${type}`; }
-  function hideAlert(el) { el.className="alert hidden"; }
 
-  function openModal(t=null) {
-    editingId = t ? t.id : null;
-    document.getElementById("modalTitle").textContent = t ? "Edit Teacher" : "Add Teacher";
-    document.getElementById("f_name").value     = t?.name    || "";
-    document.getElementById("f_email").value    = t?.email   || "";
-    document.getElementById("f_staffId").value  = t?.staffId || "";
+  // =========================================
+  // ALERTS
+  // =========================================
+
+  function showAlert(el, msg, type = "error") {
+    el.textContent = msg;
+    el.className = `alert alert-${type}`;
+  }
+
+  function hideAlert(el) {
+    el.className = "alert hidden";
+  }
+
+
+  // =========================================
+  // MODALS
+  // =========================================
+
+  function openModal(teacher = null) {
+
+    editingId = teacher ? teacher.id : null;
+
+    document.getElementById("modalTitle").textContent =
+      teacher ? "Edit Teacher" : "Add Teacher";
+
+    document.getElementById("f_name").value =
+      teacher?.name || "";
+
+    document.getElementById("f_email").value =
+      teacher?.email || "";
+
+    document.getElementById("f_staffId").value =
+      teacher?.staffId || "";
+
     document.getElementById("f_password").value = "";
-    pwGroup.style.display = t ? "none" : "flex";
+
+    pwGroup.style.display = teacher ? "none" : "flex";
+
     hideAlert(modalAlert);
+
     modal.classList.remove("hidden");
   }
-  function closeModal() { modal.classList.add("hidden"); editingId=null; }
 
-  document.getElementById("addTeacherBtn").addEventListener("click", () => openModal());
-  document.getElementById("modalClose").addEventListener("click",   closeModal);
-  document.getElementById("cancelBtn").addEventListener("click",    closeModal);
-  document.getElementById("deleteClose").addEventListener("click",  () => deleteModal.classList.add("hidden"));
-  document.getElementById("deleteCancelBtn").addEventListener("click", () => deleteModal.classList.add("hidden"));
+  function closeModal() {
+    modal.classList.add("hidden");
+    editingId = null;
+  }
 
-  // ── Load teachers ──
-  // NOTE: no orderBy() here on purpose — combining where() + orderBy() on
-  // different fields requires a Firestore composite index. We sort
-  // client-side instead so this works with zero extra Firestore setup.
+  document.getElementById("addTeacherBtn")
+    .addEventListener("click", () => openModal());
+
+  document.getElementById("modalClose")
+    .addEventListener("click", closeModal);
+
+  document.getElementById("cancelBtn")
+    .addEventListener("click", closeModal);
+
+  document.getElementById("deleteClose")
+    .addEventListener("click", () => {
+      deleteModal.classList.add("hidden");
+    });
+
+  document.getElementById("deleteCancelBtn")
+    .addEventListener("click", () => {
+      deleteModal.classList.add("hidden");
+    });
+
+
+  // =========================================
+  // SAFE HTML
+  // =========================================
+
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
+  }
+
+
+  // =========================================
+  // LOAD TEACHERS
+  // =========================================
+
   async function loadTeachers() {
+
     const tbody = document.getElementById("teachersBody");
+
     try {
+
       const snap = await getDocs(
-        query(collection(db,"users"), where("role","==","teacher"))
+        query(
+          collection(db, "users"),
+          where("role", "==", "teacher")
+        )
       );
 
-      // Count classes per teacher
-      const classSnap = await getDocs(collection(db,"classes"));
+      const classSnap = await getDocs(
+        collection(db, "classes")
+      );
+
       const classCounts = {};
-      classSnap.forEach(d => {
-        const tid = d.data().teacherId;
-        if (tid) classCounts[tid] = (classCounts[tid]||0) + 1;
+
+      classSnap.forEach(classDoc => {
+        const teacherId = classDoc.data().teacherId;
+
+        if (teacherId) {
+          classCounts[teacherId] =
+            (classCounts[teacherId] || 0) + 1;
+        }
       });
 
       allTeachers = snap.docs
-        .map(d => ({ id:d.id, classCount: classCounts[d.id]||0, ...d.data() }))
-        .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        .map(d => ({
+          id: d.id,
+          classCount: classCounts[d.id] || 0,
+          ...d.data()
+        }))
+        .sort((a, b) =>
+          (a.name || "").localeCompare(b.name || "")
+        );
 
       document.getElementById("teacherCount").textContent =
-        `${allTeachers.length} teacher${allTeachers.length!==1?"s":""} registered`;
+        `${allTeachers.length} teacher${allTeachers.length !== 1 ? "s" : ""} registered`;
+
       renderTable(allTeachers);
-    } catch (err) {
-      console.error("Failed to load teachers:", err);
-      document.getElementById("teacherCount").textContent = "Couldn't load teachers.";
-      tbody.innerHTML = '<tr><td colspan="5" class="text-grey">Error loading teachers. Check the console for details.</td></tr>';
+
+    } catch (error) {
+
+      console.error("Failed to load teachers:", error);
+
+      document.getElementById("teacherCount").textContent =
+        "Couldn't load teachers.";
+
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-grey">
+            Error loading teachers. Check the console.
+          </td>
+        </tr>
+      `;
     }
   }
+
+
+  // =========================================
+  // RENDER TEACHERS
+  // =========================================
 
   function renderTable(teachers) {
+
     const tbody = document.getElementById("teachersBody");
+
     if (!teachers.length) {
-      tbody.innerHTML='<tr><td colspan="5" class="text-grey">No teachers found.</td></tr>'; return;
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-grey">
+            No teachers found.
+          </td>
+        </tr>
+      `;
+      return;
     }
-    tbody.innerHTML = teachers.map(t => {
-      const initials = (t.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
-      return `<tr>
-        <td><span class="avatar">${initials}</span><strong>${t.name||"—"}</strong></td>
-        <td style="color:var(--grey)">${t.email||"—"}</td>
-        <td>${t.staffId||"—"}</td>
-        <td>${t.classCount} class${t.classCount!==1?"es":""}</td>
-        <td><div class="action-btns">
-          <button class="btn btn-outline" style="padding:.35rem .8rem;font-size:.8rem;"
-                  onclick="editTeacher('${t.id}')">Edit</button>
-          <button class="btn btn-danger"  style="padding:.35rem .8rem;font-size:.8rem;"
-                  onclick="promptDelete('${t.id}','${(t.name||"").replace(/'/g,"\\'")}')">Remove</button>
-        </div></td>
-      </tr>`;
+
+    tbody.innerHTML = teachers.map(teacher => {
+
+      const safeName = escapeHTML(teacher.name || "—");
+      const safeEmail = escapeHTML(teacher.email || "—");
+      const safeStaffId = escapeHTML(teacher.staffId || "—");
+
+      const initials = escapeHTML(
+        (teacher.name || "?")
+          .split(" ")
+          .map(word => word[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase()
+      );
+
+      return `
+        <tr>
+          <td>
+            <span class="avatar">${initials}</span>
+            <strong>${safeName}</strong>
+          </td>
+
+          <td style="color:var(--grey)">
+            ${safeEmail}
+          </td>
+
+          <td>${safeStaffId}</td>
+
+          <td>
+            ${teacher.classCount}
+            ${teacher.classCount !== 1 ? "classes" : "class"}
+          </td>
+
+          <td>
+            <div class="action-btns">
+
+              <button
+                class="btn btn-outline"
+                style="padding:.35rem .8rem;font-size:.8rem;"
+                data-edit="${escapeHTML(teacher.id)}"
+              >
+                Edit
+              </button>
+
+              <button
+                class="btn btn-danger"
+                style="padding:.35rem .8rem;font-size:.8rem;"
+                data-delete="${escapeHTML(teacher.id)}"
+              >
+                Remove
+              </button>
+
+            </div>
+          </td>
+        </tr>
+      `;
+
     }).join("");
+
+
+    tbody.querySelectorAll("[data-edit]").forEach(button => {
+      button.addEventListener("click", () => {
+        const teacher = allTeachers.find(
+          item => item.id === button.dataset.edit
+        );
+
+        if (teacher) openModal(teacher);
+      });
+    });
+
+    tbody.querySelectorAll("[data-delete]").forEach(button => {
+      button.addEventListener("click", () => {
+        const teacher = allTeachers.find(
+          item => item.id === button.dataset.delete
+        );
+
+        if (teacher) {
+          promptDelete(teacher.id, teacher.name || "this teacher");
+        }
+      });
+    });
   }
 
-  document.getElementById("searchInput").addEventListener("input", e => {
-    const q = e.target.value.toLowerCase();
-    renderTable(allTeachers.filter(t =>
-      (t.name||"").toLowerCase().includes(q) || (t.email||"").toLowerCase().includes(q)));
-  });
+
+  // =========================================
+  // SEARCH
+  // =========================================
+
+  document.getElementById("searchInput")
+    .addEventListener("input", event => {
+
+      const search = event.target.value.toLowerCase();
+
+      renderTable(
+        allTeachers.filter(teacher =>
+          (teacher.name || "").toLowerCase().includes(search) ||
+          (teacher.email || "").toLowerCase().includes(search)
+        )
+      );
+    });
+
+
+  // =========================================
+  // CREATE SECONDARY AUTH INSTANCE
+  // =========================================
+
+  async function createTeacherAccount(email, password) {
+
+    const secondaryApp = initializeApp(
+      auth.app.options,
+      `EduMarkTeacherCreation-${Date.now()}`
+    );
+
+    const secondaryAuth = getAuth(secondaryApp);
+
+    try {
+
+      const credential = await createUserWithEmailAndPassword(
+        secondaryAuth,
+        email,
+        password
+      );
+
+      return credential.user;
+
+    } finally {
+
+      await signOut(secondaryAuth).catch(() => {});
+      await deleteApp(secondaryApp).catch(() => {});
+
+    }
+  }
+
+
+  // =========================================
+  // SAVE TEACHER
+  // =========================================
 
   saveBtn.addEventListener("click", async () => {
-    const name     = document.getElementById("f_name").value.trim();
-    const email    = document.getElementById("f_email").value.trim();
-    const staffId  = document.getElementById("f_staffId").value.trim();
+
+    const name = document.getElementById("f_name").value.trim();
+    const email = document.getElementById("f_email").value.trim();
+    const staffId = document.getElementById("f_staffId").value.trim();
     const password = document.getElementById("f_password").value;
 
-    if (!name||!email) { showAlert(modalAlert,"Name and email are required."); return; }
-    if (!editingId && !password) { showAlert(modalAlert,"Password is required."); return; }
-    if (!editingId && password.length<6) { showAlert(modalAlert,"Password must be at least 6 characters."); return; }
+    if (!name || !email) {
+      showAlert(modalAlert, "Name and email are required.");
+      return;
+    }
 
-    saveBtn.disabled=true; saveBtn.textContent="Saving…";
+    if (!editingId && !password) {
+      showAlert(modalAlert, "Password is required.");
+      return;
+    }
+
+    if (!editingId && password.length < 6) {
+      showAlert(modalAlert, "Password must be at least 6 characters.");
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+
     hideAlert(modalAlert);
+
     try {
+
       if (editingId) {
-        await updateDoc(doc(db,"users",editingId), { name, email, staffId });
-        showAlert(pageAlert,"Teacher updated successfully.","success");
+
+        await updateDoc(
+          doc(db, "users", editingId),
+          {
+            name,
+            email,
+            staffId
+          }
+        );
+
+        showAlert(
+          pageAlert,
+          "Teacher updated successfully.",
+          "success"
+        );
+
       } else {
-        const secondaryAuth = getAuth();
-        const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
 
-        // Use the UID as the document ID — NOT addDoc
-        await setDoc(doc(db, "users", cred.user.uid), {
-          uid: cred.user.uid, name, email, staffId,
-          role: "teacher", classIds: [], createdAt: serverTimestamp()
-        });
-        showAlert(pageAlert,`Teacher "${name}" added successfully.`,"success");
+        const teacherUser = await createTeacherAccount(
+          email,
+          password
+        );
+
+        try {
+
+          await setDoc(
+            doc(db, "users", teacherUser.uid),
+            {
+              uid: teacherUser.uid,
+              name,
+              email,
+              staffId,
+              role: "teacher",
+              classIds: [],
+              createdAt: serverTimestamp()
+            }
+          );
+
+        } catch (profileError) {
+
+          showAlert(
+            modalAlert,
+            "The Authentication account was created, but its Firestore profile could not be saved. Do not register this email again. Error: " +
+            profileError.message
+          );
+
+          return;
+        }
+
+        showAlert(
+          pageAlert,
+          `Teacher "${name}" added successfully.`,
+          "success"
+        );
       }
-      closeModal(); loadTeachers();
-    } catch(err) {
-      let msg = err.message;
-      if (err.code==="auth/email-already-in-use") msg="This email is already registered.";
-      showAlert(modalAlert, msg);
-    } finally { saveBtn.disabled=false; saveBtn.textContent="Save Teacher"; }
+
+      closeModal();
+
+      await loadTeachers();
+
+    } catch (error) {
+
+      console.error(error);
+
+      let message = error.message;
+
+      if (error.code === "auth/email-already-in-use") {
+        message = "This email is already registered.";
+      }
+
+      if (error.code === "auth/invalid-email") {
+        message = "Please enter a valid email address.";
+      }
+
+      if (error.code === "auth/weak-password") {
+        message = "The password is too weak.";
+      }
+
+      showAlert(modalAlert, message);
+
+    } finally {
+
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save Teacher";
+
+    }
   });
 
-  window.editTeacher = (id) => {
-    const t = allTeachers.find(t=>t.id===id);
-    if (t) openModal(t);
-  };
-  window.promptDelete = (id, name) => {
-    deleteId=id;
-    document.getElementById("deleteTeacherName").textContent = name;
+
+  // =========================================
+  // DELETE TEACHER
+  // =========================================
+
+  function promptDelete(id, name) {
+
+    deleteId = id;
+
+    document.getElementById("deleteTeacherName").textContent =
+      name;
+
     deleteModal.classList.remove("hidden");
-  };
-  document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
-    if (!deleteId) return;
-    try {
-      await deleteDoc(doc(db,"users",deleteId));
-      deleteModal.classList.add("hidden");
-      showAlert(pageAlert,"Teacher removed.","success");
-      loadTeachers();
-    } catch(err) { showAlert(pageAlert,"Failed: "+err.message); }
-    deleteId=null;
-  });
+  }
+
+
+  document.getElementById("confirmDeleteBtn")
+    .addEventListener("click", async () => {
+
+      if (!deleteId) return;
+
+      try {
+
+        // Preserve the original behaviour:
+        // remove Firestore profile only.
+        // Firebase Authentication account is not deleted.
+
+        await deleteDoc(
+          doc(db, "users", deleteId)
+        );
+
+        deleteModal.classList.add("hidden");
+
+        showAlert(
+          pageAlert,
+          "Teacher profile removed.",
+          "success"
+        );
+
+        await loadTeachers();
+
+      } catch (error) {
+
+        showAlert(
+          pageAlert,
+          "Failed: " + error.message
+        );
+
+      }
+
+      deleteId = null;
+    });
+
+
+  // =========================================
+  // INITIAL LOAD
+  // =========================================
 
   loadTeachers();
+
 </script>
+
 </body>
 </html>

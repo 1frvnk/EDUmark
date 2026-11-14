@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Student Registration | EduMark</title>
+
+  <link rel="stylesheet" href="../../css/style.css">
+
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .register-card {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .register-card h2 {
+      margin-bottom: 8px;
+    }
+
+    .register-card p {
+      margin-bottom: 20px;
+    }
+
+    .register-card .btn {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .register-footer {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .info-box {
+      padding: 14px;
+      background: #E8F0FE;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #0D47A1;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <div class="card register-card">
+
+    <h2>EduMark</h2>
+
+    <h3>Student Registration</h3>
+
+    <p>Register using your official university details.</p>
+
+    <div class="info-box">
+      Your details will be checked against the university's official
+      student records. Your account will remain pending until
+      an administrator approves it.
+      <br><br>
+      Email verification is temporarily disabled during development.
+    </div>
+
+    <form id="registerForm">
+
+      <div class="form-group">
+        <label for="studentId">Official Student ID</label>
+
+        <input
+          type="text"
+          id="studentId"
+          class="form-control"
+          placeholder="Enter your official Student ID"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="fullName">Full Name</label>
+
+        <input
+          type="text"
+          id="fullName"
+          class="form-control"
+          placeholder="Enter your registered full name"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email Address</label>
+
+        <input
+          type="email"
+          id="email"
+          class="form-control"
+          placeholder="Enter your registered email"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+
+        <input
+          type="password"
+          id="password"
+          class="form-control"
+          placeholder="Minimum 6 characters"
+          minlength="6"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+
+        <input
+          type="password"
+          id="confirmPassword"
+          class="form-control"
+          placeholder="Confirm your password"
+          required
+        >
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary"
+        id="registerBtn"
+      >
+        Create Account
+      </button>
+
+    </form>
+
+    <div id="message" class="alert hidden"></div>
+
+    <div class="register-footer">
+
+      <p>
+        Already registered?
+        <a href="../../index.html">Login here</a>
+      </p>
+
+    </div>
+
+  </div>
+
+
+  <script type="module">
+
+    import { auth, db } from "../../js/firebase-config.js";
+
+    import {
+      createUserWithEmailAndPassword,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    import {
+      doc,
+      setDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+
+    const institutionId = "default";
+
+    const registerForm = document.getElementById("registerForm");
+
+    const studentIdInput = document.getElementById("studentId");
+    const fullNameInput = document.getElementById("fullName");
+    const emailInput = document.getElementById("email");
+
+    const passwordInput = document.getElementById("password");
+    const confirmPasswordInput = document.getElementById("confirmPassword");
+
+    const registerBtn = document.getElementById("registerBtn");
+
+    const messageBox = document.getElementById("message");
+
+    let submitting = false;
+
+
+    // DISPLAY MESSAGES
+
+    function showMessage(message, type = "success") {
+
+      messageBox.textContent = message;
+
+      messageBox.classList.remove(
+        "hidden",
+        "alert-success",
+        "alert-danger",
+        "alert-error"
+      );
+
+      messageBox.classList.add(
+        type === "success" ? "alert-success" : "alert-danger"
+      );
+
+    }
+
+
+    // RESET BUTTON
+
+    function resetButton() {
+
+      submitting = false;
+
+      registerBtn.disabled = false;
+
+      registerBtn.textContent = "Create Account";
+
+    }
+
+
+    // REGISTER STUDENT
+
+    registerForm.addEventListener("submit", async (event) => {
+
+      event.preventDefault();
+
+      if (submitting) return;
+
+
+      const studentId = studentIdInput.value.trim();
+
+      const fullName = fullNameInput.value.trim();
+
+      const email = emailInput.value.trim().toLowerCase();
+
+      const password = passwordInput.value;
+
+      const confirmPassword = confirmPasswordInput.value;
+
+
+      if (
+        !studentId ||
+        !fullName ||
+        !email ||
+        !password ||
+        !confirmPassword
+      ) {
+
+        showMessage(
+          "Please complete all required fields.",
+          "error"
+        );
+
+        return;
+
+      }
+
+
+      if (password.length < 6) {
+
+        showMessage(
+          "Password must contain at least 6 characters.",
+          "error"
+        );
+
+        return;
+
+      }
+
+
+      if (password !== confirmPassword) {
+
+        showMessage(
+          "Your passwords do not match.",
+          "error"
+        );
+
+        return;
+
+      }
+
+
+      submitting = true;
+
+      registerBtn.disabled = true;
+
+      registerBtn.textContent = "Creating Account...";
+
+
+      let accountCreated = false;
+
+
+      try {
+
+        // CREATE FIREBASE AUTH ACCOUNT
+
+        const credential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+        const user = credential.user;
+
+        accountCreated = true;
+
+
+        // CREATE REGISTRATION APPLICATION
+
+        const applicationRef = doc(
+          db,
+          "registrationApplications",
+          studentId
+        );
+
+
+        await setDoc(applicationRef, {
+
+          uid: user.uid,
+
+          studentId: studentId,
+
+          fullName: fullName,
+
+          email: email,
+
+          institutionId: institutionId,
+
+          status: "pending",
+
+          createdAt: serverTimestamp()
+
+        });
+
+
+        // SIGN OUT UNTIL ADMIN APPROVAL
+
+        await signOut(auth);
+
+
+        registerForm.reset();
+
+        showMessage(
+          "Registration submitted successfully! Your details are awaiting administrator verification. You can log in after your account is approved.",
+          "success"
+        );
+
+
+        registerBtn.textContent = "Registration Complete";
+
+        return;
+
+
+      } catch (error) {
+
+        console.error("Registration error:", error);
+
+
+        let errorMessage =
+          "Registration failed. Please try again.";
+
+
+        if (error.code === "auth/email-already-in-use") {
+
+          errorMessage =
+            "This email already has a Firebase Authentication account. Please use another test email or recover the existing account.";
+
+        } else if (error.code === "auth/weak-password") {
+
+          errorMessage =
+            "Please choose a stronger password.";
+
+        } else if (error.code === "auth/invalid-email") {
+
+          errorMessage =
+            "Please enter a valid email address.";
+
+        } else if (error.code === "permission-denied") {
+
+          errorMessage =
+            "Your account was created, but Firestore denied the registration application. Check your Firestore rules and official student record.";
+
+        } else if (accountCreated) {
+
+          errorMessage =
+            "Your Firebase account was created, but the registration application could not be completed. Do not register again with this email. Check the error and recover this account.";
+
+        } else {
+
+          errorMessage =
+            error.message || errorMessage;
+
+        }
+
+
+        showMessage(errorMessage, "error");
+
+        resetButton();
+
+      }
+
+    });
+
+  </script>
+
+</body>
+
+</html>

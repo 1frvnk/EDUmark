@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMark | Course Offerings</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">EduMark</div>
+    <div class="sidebar-role">Administrator</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="students.html" class="nav-link">Students</a>
+      <a href="teachers.html" class="nav-link">Teachers</a>
+      <a href="programmes.html" class="nav-link">Programmes</a>
+      <a href="levels.html" class="nav-link">Levels</a>
+      <a href="academic-years.html" class="nav-link">Academic Years</a>
+      <a href="courses.html" class="nav-link">Course Catalogue</a>
+      <a href="course-offerings.html" class="nav-link active">Course Offerings</a>
+      <a href="classes.html" class="nav-link">Legacy Classes</a>
+      <a href="reports.html" class="nav-link">Reports</a>
+    </nav>
+
+    <button class="btn btn-outline" id="logoutBtn">Logout</button>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <h2>Course Offerings</h2>
+      <span id="adminName">Administrator</span>
+    </header>
+
+    <section class="content">
+
+      <div class="card">
+        <h3>Manage Course Offerings</h3>
+        <p>
+          Assign catalogue courses to programmes, levels and academic semesters.
+        </p>
+
+        <button class="btn btn-primary" id="addOfferingBtn">
+          + Create Course Offering
+        </button>
+      </div>
+
+      <div class="card">
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
+
+          <input
+            type="text"
+            id="searchInput"
+            class="form-control"
+            placeholder="Search course..."
+            style="max-width:250px;"
+          >
+
+          <select id="programmeFilter" class="form-control" style="max-width:220px;">
+            <option value="">All Programmes</option>
+          </select>
+
+          <select id="yearFilter" class="form-control" style="max-width:200px;">
+            <option value="">All Academic Years</option>
+          </select>
+
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Programme</th>
+                <th>Level</th>
+                <th>Academic Year</th>
+                <th>Semester</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="offeringsTable">
+              <tr>
+                <td colspan="7">Loading course offerings...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<!-- COURSE OFFERING MODAL -->
+
+<div class="modal-overlay hidden" id="offeringModal">
+
+  <div class="modal">
+
+    <div class="modal-header">
+      <h3 id="modalTitle">Create Course Offering</h3>
+      <button class="modal-close" id="closeModal">&times;</button>
+    </div>
+
+    <form id="offeringForm">
+
+      <div class="form-group">
+        <label>Course</label>
+        <select id="courseId" class="form-control" required>
+          <option value="">Select Course</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Programme</label>
+        <select id="programmeId" class="form-control" required>
+          <option value="">Select Programme</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Level</label>
+        <select id="levelId" class="form-control" required disabled>
+          <option value="">Select Programme First</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Academic Year</label>
+        <select id="academicYearId" class="form-control" required>
+          <option value="">Select Academic Year</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Semester</label>
+        <select id="semesterId" class="form-control" required disabled>
+          <option value="">Select Academic Year First</option>
+        </select>
+      </div>
+
+      <div id="formMessage" class="alert hidden"></div>
+
+      <button type="submit" class="btn btn-primary" id="saveBtn">
+        Save Offering
+      </button>
+
+      <button type="button" class="btn btn-outline" id="cancelBtn">
+        Cancel
+      </button>
+
+    </form>
+
+  </div>
+
+</div>
+
+
+<script type="module">
+
+import { auth, db } from "../../js/firebase-config.js";
+
+import {
+  guardPage,
+  attachLogout
+} from "../../js/auth.js";
+
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  query,
+  where,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+
+guardPage("admin");
+attachLogout();
+
+const INSTITUTION_ID = "default";
+
+let courses = [];
+let programmes = [];
+let levels = [];
+let academicYears = [];
+let semesters = [];
+let offerings = [];
+
+let editingId = null;
+
+const $ = id => document.getElementById(id);
+
+const offeringModal = $("offeringModal");
+const offeringForm = $("offeringForm");
+const offeringsTable = $("offeringsTable");
+const formMessage = $("formMessage");
+
+
+// ADMIN DETAILS
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    $("adminName").textContent = user.email || "Administrator";
+  }
+});
+
+
+// LOAD COLLECTIONS
+
+async function loadCollection(name) {
+
+  const q = query(
+    collection(db, name),
+    where("institutionId", "==", INSTITUTION_ID)
+  );
+
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(item => ({
+    id: item.id,
+    ...item.data()
+  }));
+
+}
+
+
+// POPULATE SELECT
+
+function populateSelect(element, items, placeholder, labelFunction) {
+
+  element.innerHTML = "";
+
+  const firstOption = document.createElement("option");
+  firstOption.value = "";
+  firstOption.textContent = placeholder;
+
+  element.appendChild(firstOption);
+
+  items.forEach(item => {
+
+    const option = document.createElement("option");
+
+    option.value = item.id;
+    option.textContent = labelFunction(item);
+
+    element.appendChild(option);
+
+  });
+
+}
+
+
+// LOAD ALL DATA
+
+async function loadData() {
+
+  courses = await loadCollection("courses");
+  programmes = await loadCollection("programmes");
+  levels = await loadCollection("levels");
+  academicYears = await loadCollection("academicYears");
+  semesters = await loadCollection("semesters");
+  offerings = await loadCollection("courseOfferings");
+
+  courses = courses.filter(item => item.status === "active");
+  programmes = programmes.filter(item => item.status === "active");
+  levels = levels.filter(item => item.status === "active");
+  academicYears = academicYears.filter(item => item.status === "active");
+  semesters = semesters.filter(item => item.status === "active");
+
+  populateSelect(
+    $("courseId"),
+    courses,
+    "Select Course",
+    item => `${item.code} - ${item.title}`
+  );
+
+  populateSelect(
+    $("programmeId"),
+    programmes,
+    "Select Programme",
+    item => `${item.name} (${item.code})`
+  );
+
+  populateSelect(
+    $("academicYearId"),
+    academicYears,
+    "Select Academic Year",
+    item => item.name
+  );
+
+  populateSelect(
+    $("programmeFilter"),
+    programmes,
+    "All Programmes",
+    item => item.name
+  );
+
+  populateSelect(
+    $("yearFilter"),
+    academicYears,
+    "All Academic Years",
+    item => item.name
+  );
+
+  renderOfferings();
+
+}
+
+
+// DEPENDENT LEVEL SELECT
+
+$("programmeId").addEventListener("change", () => {
+
+  const programmeId = $("programmeId").value;
+
+  const programmeLevels = levels.filter(
+    level => level.programmeId === programmeId
+  );
+
+  populateSelect(
+    $("levelId"),
+    programmeLevels,
+    "Select Level",
+    item => item.name
+  );
+
+  $("levelId").disabled = !programmeLevels.length;
+
+});
+
+
+// DEPENDENT SEMESTER SELECT
+
+$("academicYearId").addEventListener("change", () => {
+
+  const academicYearId = $("academicYearId").value;
+
+  const yearSemesters = semesters.filter(
+    semester => semester.academicYearId === academicYearId
+  );
+
+  populateSelect(
+    $("semesterId"),
+    yearSemesters,
+    "Select Semester",
+    item => item.name
+  );
+
+  $("semesterId").disabled = !yearSemesters.length;
+
+});
+
+
+// RENDER OFFERINGS
+
+function renderOfferings() {
+
+  const search = $("searchInput").value.trim().toLowerCase();
+  const programmeFilter = $("programmeFilter").value;
+  const yearFilter = $("yearFilter").value;
+
+  const filtered = offerings.filter(offering => {
+
+    const course = courses.find(item => item.id === offering.courseId);
+    const programme = programmes.find(item => item.id === offering.programmeId);
+
+    const matchesSearch =
+      course &&
+      (course.code.toLowerCase().includes(search) ||
+       course.title.toLowerCase().includes(search));
+
+    return matchesSearch &&
+      (!programmeFilter || offering.programmeId === programmeFilter) &&
+      (!yearFilter || offering.academicYearId === yearFilter);
+
+  });
+
+  offeringsTable.innerHTML = "";
+
+  if (!filtered.length) {
+
+    offeringsTable.innerHTML = `
+      <tr>
+        <td colspan="7">No course offerings found.</td>
+      </tr>
+    `;
+
+    return;
+
+  }
+
+  filtered.forEach(offering => {
+
+    const course = courses.find(item => item.id === offering.courseId);
+    const programme = programmes.find(item => item.id === offering.programmeId);
+    const level = levels.find(item => item.id === offering.levelId);
+    const year = academicYears.find(item => item.id === offering.academicYearId);
+    const semester = semesters.find(item => item.id === offering.semesterId);
+
+    const row = document.createElement("tr");
+
+    const values = [
+      course ? `${course.code} - ${course.title}` : "Unavailable course",
+      programme?.name || "Unavailable programme",
+      level?.name || "Unavailable level",
+      year?.name || "Unavailable year",
+      semester?.name || "Unavailable semester",
+      offering.status
+    ];
+
+    values.forEach(value => {
+
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
+
+    });
+
+    const actionsCell = document.createElement("td");
+
+    const editButton = document.createElement("button");
+    editButton.className = "btn btn-outline";
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", () => editOffering(offering.id));
+
+    const toggleButton = document.createElement("button");
+    toggleButton.className = "btn btn-outline";
+    toggleButton.style.marginLeft = "5px";
+
+    toggleButton.textContent =
+      offering.status === "active" ? "Deactivate" : "Activate";
+
+    toggleButton.addEventListener("click", () => toggleOffering(offering.id));
+
+    actionsCell.append(editButton, toggleButton);
+    row.appendChild(actionsCell);
+
+    offeringsTable.appendChild(row);
+
+  });
+
+}
+
+
+// OPEN MODAL
+
+function openModal() {
+
+  offeringForm.reset();
+  editingId = null;
+
+  $("modalTitle").textContent = "Create Course Offering";
+  $("saveBtn").textContent = "Save Offering";
+
+  $("levelId").disabled = true;
+  $("semesterId").disabled = true;
+
+  populateSelect($("levelId"), [], "Select Programme First", item => item.name);
+  populateSelect($("semesterId"), [], "Select Academic Year First", item => item.name);
+
+  formMessage.classList.add("hidden");
+  offeringModal.classList.remove("hidden");
+
+}
+
+
+// CLOSE MODAL
+
+function closeModal() {
+
+  offeringModal.classList.add("hidden");
+  offeringForm.reset();
+
+  editingId = null;
+
+}
+
+$("addOfferingBtn").addEventListener("click", openModal);
+$("closeModal").addEventListener("click", closeModal);
+$("cancelBtn").addEventListener("click", closeModal);
+
+
+// SAVE OFFERING
+
+offeringForm.addEventListener("submit", async event => {
+
+  event.preventDefault();
+
+  const courseId = $("courseId").value;
+  const programmeId = $("programmeId").value;
+  const levelId = $("levelId").value;
+  const academicYearId = $("academicYearId").value;
+  const semesterId = $("semesterId").value;
+
+  const selectedSemester = semesters.find(
+    item => item.id === semesterId
+  );
+
+  if (!selectedSemester ||
+      selectedSemester.academicYearId !== academicYearId) {
+
+    formMessage.textContent = "Select a valid semester for the academic year.";
+    formMessage.classList.remove("hidden");
+    return;
+
+  }
+
+  const duplicate = offerings.some(item =>
+    item.courseId === courseId &&
+    item.programmeId === programmeId &&
+    item.levelId === levelId &&
+    item.academicYearId === academicYearId &&
+    item.semesterId === semesterId &&
+    item.id !== editingId
+  );
+
+  if (duplicate) {
+
+    formMessage.textContent =
+      "This course offering already exists.";
+
+    formMessage.classList.remove("hidden");
+    return;
+
+  }
+
+  const saveBtn = $("saveBtn");
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving...";
+
+  try {
+
+    const data = {
+      courseId,
+      programmeId,
+      levelId,
+      academicYearId,
+      semesterId,
+      institutionId: INSTITUTION_ID,
+      updatedAt: serverTimestamp()
+    };
+
+    if (editingId) {
+
+      await updateDoc(
+        doc(db, "courseOfferings", editingId),
+        data
+      );
+
+    } else {
+
+      await addDoc(
+        collection(db, "courseOfferings"),
+        {
+          ...data,
+          status: "active",
+          createdAt: serverTimestamp()
+        }
+      );
+
+    }
+
+    closeModal();
+
+    offerings = await loadCollection("courseOfferings");
+    renderOfferings();
+
+  } catch (error) {
+
+    console.error("Offering save error:", error);
+
+    formMessage.textContent =
+      "Unable to save offering. Check Firestore permissions.";
+
+    formMessage.classList.remove("hidden");
+
+  } finally {
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = editingId ? "Update Offering" : "Save Offering";
+
+  }
+
+});
+
+
+// EDIT OFFERING
+
+function editOffering(id) {
+
+  const offering = offerings.find(item => item.id === id);
+
+  if (!offering) return;
+
+  editingId = id;
+
+  $("courseId").value = offering.courseId;
+  $("programmeId").value = offering.programmeId;
+
+  const programmeLevels = levels.filter(
+    level => level.programmeId === offering.programmeId
+  );
+
+  populateSelect(
+    $("levelId"),
+    programmeLevels,
+    "Select Level",
+    item => item.name
+  );
+
+  $("levelId").disabled = false;
+  $("levelId").value = offering.levelId;
+
+  $("academicYearId").value = offering.academicYearId;
+
+  const yearSemesters = semesters.filter(
+    semester => semester.academicYearId === offering.academicYearId
+  );
+
+  populateSelect(
+    $("semesterId"),
+    yearSemesters,
+    "Select Semester",
+    item => item.name
+  );
+
+  $("semesterId").disabled = false;
+  $("semesterId").value = offering.semesterId;
+
+  $("modalTitle").textContent = "Edit Course Offering";
+  $("saveBtn").textContent = "Update Offering";
+
+  formMessage.classList.add("hidden");
+  offeringModal.classList.remove("hidden");
+
+}
+
+
+// ACTIVATE / DEACTIVATE
+
+async function toggleOffering(id) {
+
+  const offering = offerings.find(item => item.id === id);
+
+  if (!offering) return;
+
+  const newStatus =
+    offering.status === "active" ? "inactive" : "active";
+
+  if (!confirm(`Are you sure you want to ${newStatus} this offering?`))
+    return;
+
+  try {
+
+    await updateDoc(
+      doc(db, "courseOfferings", id),
+      {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      }
+    );
+
+    offerings = await loadCollection("courseOfferings");
+    renderOfferings();
+
+  } catch (error) {
+
+    console.error(error);
+    alert("Unable to update course offering.");
+
+  }
+
+}
+
+
+// SEARCH AND FILTER
+
+$("searchInput").addEventListener("input", renderOfferings);
+$("programmeFilter").addEventListener("change", renderOfferings);
+$("yearFilter").addEventListener("change", renderOfferings);
+
+
+// INITIAL LOAD
+
+try {
+
+  await loadData();
+
+} catch (error) {
+
+  console.error("Initial loading error:", error);
+
+  offeringsTable.innerHTML = `
+    <tr>
+      <td colspan="7">
+        Unable to load course offering information.
+        Check the browser console for details.
+      </td>
+    </tr>
+  `;
+
+}
+
+</script>
+
+</body>
+</html>

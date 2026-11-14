@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMark | Student Records</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="../../css/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    .page-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:1rem;
+      flex-wrap:wrap;
+      margin-bottom:1.2rem;
+    }
+
+    .page-actions {
+      display:flex;
+      gap:.6rem;
+      flex-wrap:wrap;
+    }
+
+    .filters {
+      display:grid;
+      grid-template-columns:2fr 1fr 1fr;
+      gap:1rem;
+      margin-bottom:1rem;
+    }
+
+    .stats-grid {
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:1rem;
+      margin-bottom:1rem;
+    }
+
+    .stat-card {
+      padding:1.2rem;
+    }
+
+    .stat-card h3 {
+      font-size:1.5rem;
+      margin:.5rem 0;
+    }
+
+    .stat-card p {
+      color:var(--grey);
+      font-size:.85rem;
+    }
+
+    .modal {
+      max-height:90vh;
+      overflow-y:auto;
+    }
+
+    .form-grid {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:1rem;
+    }
+
+    .full-width {
+      grid-column:1/-1;
+    }
+
+    .status-badge {
+      display:inline-block;
+      padding:.35rem .65rem;
+      border-radius:20px;
+      font-size:.75rem;
+      font-weight:600;
+    }
+
+    .status-unclaimed {
+      background:#fff4ce;
+      color:#8a6500;
+    }
+
+    .status-claimed {
+      background:#e6f4ea;
+      color:#188038;
+    }
+
+    .status-active {
+      background:#e6f4ea;
+      color:#188038;
+    }
+
+    .status-inactive {
+      background:#fce8e6;
+      color:#c5221f;
+    }
+
+    .action-buttons {
+      display:flex;
+      gap:.4rem;
+      flex-wrap:wrap;
+    }
+
+    .action-buttons button {
+      padding:.35rem .65rem;
+      font-size:.8rem;
+    }
+
+    .import-box {
+      border:1px dashed var(--border);
+      padding:1.2rem;
+      border-radius:var(--radius);
+      margin-top:1rem;
+      background:var(--bg);
+    }
+
+    .import-box input {
+      margin-top:.8rem;
+    }
+
+    .help-text {
+      color:var(--grey);
+      font-size:.8rem;
+      margin-top:.4rem;
+      line-height:1.5;
+    }
+
+    .modal-overlay {
+      z-index:1000;
+    }
+
+    .table-wrap {
+      overflow-x:auto;
+    }
+
+    @media(max-width:768px) {
+      .filters {
+        grid-template-columns:1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns:1fr;
+      }
+
+      .form-grid {
+        grid-template-columns:1fr;
+      }
+
+      .full-width {
+        grid-column:auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">EduMark</div>
+    <div class="sidebar-role">Administrator</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="student-records.html" class="nav-link active">Student Records</a>
+      <a href="teachers.html" class="nav-link">Teachers</a>
+      <a href="programmes.html" class="nav-link">Programmes</a>
+      <a href="levels.html" class="nav-link">Levels</a>
+      <a href="academic-years.html" class="nav-link">Academic Years</a>
+      <a href="courses.html" class="nav-link">Courses</a>
+      <a href="course-offerings.html" class="nav-link">Course Offerings</a>
+      <a href="course-assignments.html" class="nav-link">Course Assignments</a>
+      <a href="student-approvals.html" class="nav-link">Student Approvals</a>
+      <a href="reports.html" class="nav-link">Reports</a>
+    </nav>
+
+    <button class="btn btn-outline" id="logoutBtn">Logout</button>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <h2>Student Records</h2>
+      <span id="adminName">Administrator</span>
+    </header>
+
+    <section class="content">
+
+      <div class="page-header">
+        <div>
+          <h2>Institutional Student Records</h2>
+          <p class="help-text">
+            Manage official student information independently of login accounts.
+          </p>
+        </div>
+
+        <div class="page-actions">
+          <button class="btn btn-outline" id="importBtn">
+            Import Students
+          </button>
+
+          <button class="btn btn-primary" id="addStudentBtn">
+            + Add Student
+          </button>
+        </div>
+      </div>
+
+      <div id="pageAlert" class="alert hidden"></div>
+
+      <div class="stats-grid">
+
+        <div class="card stat-card">
+          <p>Total Student Records</p>
+          <h3 id="totalStudents">0</h3>
+        </div>
+
+        <div class="card stat-card">
+          <p>Accounts Claimed</p>
+          <h3 id="claimedStudents">0</h3>
+        </div>
+
+        <div class="card stat-card">
+          <p>Awaiting Activation</p>
+          <h3 id="unclaimedStudents">0</h3>
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="filters">
+
+          <input
+            type="search"
+            id="searchInput"
+            class="form-control"
+            placeholder="Search Student ID, name or email..."
+          >
+
+          <select id="programmeFilter" class="form-control">
+            <option value="">All Programmes</option>
+          </select>
+
+          <select id="levelFilter" class="form-control">
+            <option value="">All Levels</option>
+          </select>
+
+        </div>
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Student ID</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Programme</th>
+                <th>Level</th>
+                <th>Account Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="studentsTable">
+
+              <tr>
+                <td colspan="7">Loading student records...</td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<!-- STUDENT MODAL -->
+
+<div class="modal-overlay hidden" id="studentModal">
+
+  <div class="modal">
+
+    <div class="modal-header">
+      <h3 id="modalTitle">Register Student</h3>
+
+      <button class="modal-close" id="closeModal">
+        &times;
+      </button>
+    </div>
+
+    <form id="studentForm">
+
+      <div class="form-grid">
+
+        <div class="form-group full-width">
+          <label for="studentId">Official Student ID</label>
+
+          <input
+            type="text"
+            id="studentId"
+            class="form-control"
+            placeholder="e.g. GCTU2026001"
+            maxlength="50"
+            required
+          >
+        </div>
+
+        <div class="form-group full-width">
+          <label for="fullName">Full Name</label>
+
+          <input
+            type="text"
+            id="fullName"
+            class="form-control"
+            placeholder="Enter student's full name"
+            required
+          >
+        </div>
+
+        <div class="form-group full-width">
+          <label for="email">Institutional Email</label>
+
+          <input
+            type="email"
+            id="email"
+            class="form-control"
+            placeholder="student@example.com"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="programmeId">Programme</label>
+
+          <select
+            id="programmeId"
+            class="form-control"
+            required
+          >
+            <option value="">Select Programme</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="levelId">Level</label>
+
+          <select
+            id="levelId"
+            class="form-control"
+            required
+          >
+            <option value="">Select Level</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div id="formAlert" class="alert hidden"></div>
+
+      <div style="display:flex;gap:.6rem;margin-top:1rem;flex-wrap:wrap;">
+
+        <button type="submit" class="btn btn-primary" id="saveBtn">
+          Save Student
+        </button>
+
+        <button type="button" class="btn btn-outline" id="cancelBtn">
+          Cancel
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
+
+<!-- IMPORT MODAL -->
+
+<div class="modal-overlay hidden" id="importModal">
+
+  <div class="modal">
+
+    <div class="modal-header">
+
+      <h3>Import Student Records</h3>
+
+      <button class="modal-close" id="closeImportModal">
+        &times;
+      </button>
+
+    </div>
+
+    <p>
+      Upload a CSV or Excel spreadsheet containing student information.
+    </p>
+
+    <div class="import-box">
+
+      <strong>Required spreadsheet columns</strong>
+
+      <p class="help-text">
+        studentId, fullName, email, programmeCode, levelNumber
+      </p>
+
+      <p class="help-text">
+        Example: GCTU2026001, John Doe, john@example.com, DIT, 100
+      </p>
+
+      <input
+        type="file"
+        id="importFile"
+        class="form-control"
+        accept=".csv,.xlsx,.xls"
+      >
+
+      <p class="help-text">
+        Existing Student IDs will be skipped. Programme codes must match
+        existing programmes, and levels must exist under the selected programme.
+      </p>
+
+    </div>
+
+    <div id="importAlert" class="alert hidden" style="margin-top:1rem;"></div>
+
+    <div style="display:flex;gap:.6rem;margin-top:1rem;flex-wrap:wrap;">
+
+      <button class="btn btn-primary" id="processImportBtn">
+        Import Students
+      </button>
+
+      <button class="btn btn-outline" id="cancelImportBtn">
+        Cancel
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script type="module">
+
+import { auth, db } from "../../js/firebase-config.js";
+
+import {
+  guardPage,
+  attachLogout
+} from "../../js/auth.js";
+
+import {
+  collection,
+  getDocs,
+  addDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+
+guardPage("admin");
+attachLogout("logoutBtn");
+
+
+const INSTITUTION_ID = "default";
+
+const studentsTable = document.getElementById("studentsTable");
+
+const studentModal = document.getElementById("studentModal");
+const importModal = document.getElementById("importModal");
+
+const studentForm = document.getElementById("studentForm");
+
+const programmeSelect = document.getElementById("programmeId");
+const levelSelect = document.getElementById("levelId");
+
+const programmeFilter = document.getElementById("programmeFilter");
+const levelFilter = document.getElementById("levelFilter");
+
+const pageAlert = document.getElementById("pageAlert");
+const formAlert = document.getElementById("formAlert");
+const importAlert = document.getElementById("importAlert");
+
+let students = [];
+let programmes = [];
+let levels = [];
+
+let editingId = null;
+
+
+// ADMIN DETAILS
+
+onAuthStateChanged(auth, user => {
+
+  if (!user) return;
+
+  document.getElementById("adminName").textContent =
+    user.email || "Administrator";
+
+});
+
+
+// ALERTS
+
+function showAlert(element, message, type = "error") {
+
+  element.textContent = message;
+
+  element.className = `alert alert-${type}`;
+
+}
+
+function hideAlert(element) {
+
+  element.className = "alert hidden";
+
+}
+
+
+// LOAD PROGRAMMES
+
+async function loadProgrammes() {
+
+  const q = query(
+    collection(db, "programmes"),
+    where("institutionId", "==", INSTITUTION_ID)
+  );
+
+  const snapshot = await getDocs(q);
+
+  programmes = snapshot.docs.map(item => ({
+    id: item.id,
+    ...item.data()
+  }));
+
+  programmes.sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "")
+  );
+
+  programmeSelect.innerHTML =
+    '<option value="">Select Programme</option>';
+
+  programmeFilter.innerHTML =
+    '<option value="">All Programmes</option>';
+
+  programmes.forEach(programme => {
+
+    const option = document.createElement("option");
+
+    option.value = programme.id;
+
+    option.textContent =
+      `${programme.name} (${programme.code})`;
+
+    programmeSelect.appendChild(option);
+
+    const filterOption = document.createElement("option");
+
+    filterOption.value = programme.id;
+
+    filterOption.textContent = programme.name;
+
+    programmeFilter.appendChild(filterOption);
+
+  });
+
+}
+
+
+// LOAD LEVELS
+
+async function loadLevels() {
+
+  const q = query(
+    collection(db, "levels"),
+    where("institutionId", "==", INSTITUTION_ID)
+  );
+
+  const snapshot = await getDocs(q);
+
+  levels = snapshot.docs.map(item => ({
+    id: item.id,
+    ...item.data()
+  }));
+
+  populateLevelOptions();
+
+}
+
+
+// POPULATE LEVELS
+
+function populateLevelOptions() {
+
+  const selectedProgramme = programmeSelect.value;
+
+  const filteredLevels = levels.filter(level =>
+    !selectedProgramme || level.programmeId === selectedProgramme
+  );
+
+  levelSelect.innerHTML =
+    '<option value="">Select Level</option>';
+
+  levelFilter.innerHTML =
+    '<option value="">All Levels</option>';
+
+  filteredLevels.forEach(level => {
+
+    const option = document.createElement("option");
+
+    option.value = level.id;
+
+    option.textContent = level.name;
+
+    levelSelect.appendChild(option);
+
+    const filterOption = document.createElement("option");
+
+    filterOption.value = level.id;
+
+    filterOption.textContent = level.name;
+
+    levelFilter.appendChild(filterOption);
+
+  });
+
+}
+
+
+// LOAD STUDENTS
+
+async function loadStudents() {
+
+  studentsTable.innerHTML =
+    '<tr><td colspan="7">Loading student records...</td></tr>';
+
+  try {
+
+    const q = query(
+      collection(db, "studentRecords"),
+      where("institutionId", "==", INSTITUTION_ID)
+    );
+
+    const snapshot = await getDocs(q);
+
+    students = snapshot.docs.map(item => ({
+      id: item.id,
+      ...item.data()
+    }));
+
+    students.sort((a, b) =>
+      (a.fullName || "").localeCompare(b.fullName || "")
+    );
+
+    updateStatistics();
+
+    renderStudents();
+
+  } catch (error) {
+
+    console.error("Student loading error:", error);
+
+    studentsTable.innerHTML = `
+      <tr>
+        <td colspan="7">
+          Unable to load records. Check Firestore permissions.
+        </td>
+      </tr>
+    `;
+
+  }
+
+}
+
+
+// STATISTICS
+
+function updateStatistics() {
+
+  const claimed = students.filter(student =>
+    student.accountClaimed === true
+  ).length;
+
+  document.getElementById("totalStudents").textContent =
+    students.length;
+
+  document.getElementById("claimedStudents").textContent =
+    claimed;
+
+  document.getElementById("unclaimedStudents").textContent =
+    students.length - claimed;
+
+}
+
+
+// GET PROGRAMME NAME
+
+function getProgrammeName(id) {
+
+  return programmes.find(p => p.id === id)?.name || "Unknown";
+
+}
+
+
+// GET LEVEL NAME
+
+function getLevelName(id) {
+
+  return levels.find(l => l.id === id)?.name || "Unknown";
+
+}
+
+
+// RENDER STUDENTS
+
+function renderStudents() {
+
+  const search = document.getElementById("searchInput")
+    .value.trim().toLowerCase();
+
+  const selectedProgramme = programmeFilter.value;
+
+  const selectedLevel = levelFilter.value;
+
+  const filtered = students.filter(student => {
+
+    const matchesSearch =
+      (student.studentId || "").toLowerCase().includes(search) ||
+      (student.fullName || "").toLowerCase().includes(search) ||
+      (student.email || "").toLowerCase().includes(search);
+
+    const matchesProgramme =
+      !selectedProgramme ||
+      student.programmeId === selectedProgramme;
+
+    const matchesLevel =
+      !selectedLevel ||
+      student.levelId === selectedLevel;
+
+    return matchesSearch && matchesProgramme && matchesLevel;
+
+  });
+
+  studentsTable.innerHTML = "";
+
+  if (!filtered.length) {
+
+    studentsTable.innerHTML = `
+      <tr>
+        <td colspan="7">No student records found.</td>
+      </tr>
+    `;
+
+    return;
+
+  }
+
+  filtered.forEach(student => {
+
+    const row = document.createElement("tr");
+
+    const studentIdCell = document.createElement("td");
+    studentIdCell.textContent = student.studentId;
+
+    const nameCell = document.createElement("td");
+    nameCell.textContent = student.fullName;
+
+    const emailCell = document.createElement("td");
+    emailCell.textContent = student.email;
+
+    const programmeCell = document.createElement("td");
+    programmeCell.textContent =
+      getProgrammeName(student.programmeId);
+
+    const levelCell = document.createElement("td");
+    levelCell.textContent =
+      getLevelName(student.levelId);
+
+    const statusCell = document.createElement("td");
+
+    const badge = document.createElement("span");
+
+    badge.className = student.accountClaimed
+      ? "status-badge status-claimed"
+      : "status-badge status-unclaimed";
+
+    badge.textContent = student.accountClaimed
+      ? "Claimed"
+      : "Not activated";
+
+    statusCell.appendChild(badge);
+
+    const actionsCell = document.createElement("td");
+
+    const actions = document.createElement("div");
+    actions.className = "action-buttons";
+
+    const editButton = document.createElement("button");
+
+    editButton.className = "btn btn-outline";
+    editButton.textContent = "Edit";
+
+    editButton.addEventListener("click", () =>
+      editStudent(student.id)
+    );
+
+    const deleteButton = document.createElement("button");
+
+    deleteButton.className = "btn btn-danger";
+    deleteButton.textContent = "Delete";
+
+    deleteButton.addEventListener("click", () =>
+      removeStudent(student.id)
+    );
+
+    actions.append(editButton, deleteButton);
+
+    actionsCell.appendChild(actions);
+
+    row.append(
+      studentIdCell,
+      nameCell,
+      emailCell,
+      programmeCell,
+      levelCell,
+      statusCell,
+      actionsCell
+    );
+
+    studentsTable.appendChild(row);
+
+  });
+
+}
+
+
+// OPEN STUDENT MODAL
+
+function openStudentModal() {
+
+  editingId = null;
+
+  studentForm.reset();
+
+  document.getElementById("modalTitle").textContent =
+    "Register Student";
+
+  document.getElementById("saveBtn").textContent =
+    "Save Student";
+
+  hideAlert(formAlert);
+
+  populateLevelOptions();
+
+  studentModal.classList.remove("hidden");
+
+}
+
+
+// CLOSE STUDENT MODAL
+
+function closeStudentModal() {
+
+  studentModal.classList.add("hidden");
+
+  studentForm.reset();
+
+  editingId = null;
+
+  hideAlert(formAlert);
+
+}
+
+
+// EDIT STUDENT
+
+function editStudent(id) {
+
+  const student = students.find(item => item.id === id);
+
+  if (!student) return;
+
+  editingId = id;
+
+  document.getElementById("modalTitle").textContent =
+    "Edit Student Record";
+
+  document.getElementById("saveBtn").textContent =
+    "Update Student";
+
+  document.getElementById("studentId").value =
+    student.studentId;
+
+  document.getElementById("studentId").disabled = true;
+
+  document.getElementById("fullName").value =
+    student.fullName || "";
+
+  document.getElementById("email").value =
+    student.email || "";
+
+  programmeSelect.value = student.programmeId;
+
+  populateLevelOptions();
+
+  levelSelect.value = student.levelId;
+
+  hideAlert(formAlert);
+
+  studentModal.classList.remove("hidden");
+
+}
+
+
+// ADD STUDENT BUTTON
+
+document.getElementById("addStudentBtn")
+  .addEventListener("click", () => {
+
+    document.getElementById("studentId").disabled = false;
+
+    openStudentModal();
+
+  });
+
+
+// CLOSE BUTTONS
+
+document.getElementById("closeModal")
+  .addEventListener("click", closeStudentModal);
+
+document.getElementById("cancelBtn")
+  .addEventListener("click", closeStudentModal);
+
+
+// PROGRAMME CHANGE
+
+programmeSelect.addEventListener("change", () => {
+
+  populateLevelOptions();
+
+});
+
+
+// SAVE STUDENT
+
+studentForm.addEventListener("submit", async event => {
+
+  event.preventDefault();
+
+  const studentId = document.getElementById("studentId")
+    .value.trim();
+
+  const fullName = document.getElementById("fullName")
+    .value.trim();
+
+  const email = document.getElementById("email")
+    .value.trim().toLowerCase();
+
+  const programmeId = programmeSelect.value;
+
+  const levelId = levelSelect.value;
+
+  if (!studentId || !fullName || !email || !programmeId || !levelId) {
+
+    showAlert(formAlert, "Please complete all required fields.");
+
+    return;
+
+  }
+
+  const validLevel = levels.some(level =>
+    level.id === levelId &&
+    level.programmeId === programmeId
+  );
+
+  if (!validLevel) {
+
+    showAlert(formAlert, "Please select a valid level for this programme.");
+
+    return;
+
+  }
+
+  const saveBtn = document.getElementById("saveBtn");
+
+  saveBtn.disabled = true;
+
+  saveBtn.textContent = "Saving...";
+
+  try {
+
+    if (editingId) {
+
+      await updateDoc(
+        doc(db, "studentRecords", editingId),
+        {
+          fullName,
+          email,
+          programmeId,
+          levelId,
+          updatedAt: serverTimestamp()
+        }
+      );
+
+    } else {
+
+      const recordRef = doc(db, "studentRecords", studentId);
+
+      const existing = students.some(student =>
+        student.id === studentId
+      );
+
+      if (existing) {
+
+        showAlert(formAlert, "This Student ID already exists.");
+
+        return;
+
+      }
+
+      await setDoc(recordRef, {
+
+        studentId,
+        fullName,
+        email,
+        programmeId,
+        levelId,
+        institutionId: INSTITUTION_ID,
+
+        accountClaimed: false,
+
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+
+      });
+
+    }
+
+    closeStudentModal();
+
+    await loadStudents();
+
+    showAlert(
+      pageAlert,
+      editingId
+        ? "Student record updated successfully."
+        : "Student record created successfully.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    showAlert(
+      formAlert,
+      error.code === "permission-denied"
+        ? "Permission denied. Check your Firestore rules."
+        : error.message || "Unable to save student record."
+    );
+
+  } finally {
+
+    saveBtn.disabled = false;
+
+    saveBtn.textContent = editingId
+      ? "Update Student"
+      : "Save Student";
+
+    document.getElementById("studentId").disabled = false;
+
+  }
+
+});
+
+
+// DELETE STUDENT
+
+async function removeStudent(id) {
+
+  const student = students.find(item => item.id === id);
+
+  if (!student) return;
+
+  if (student.accountClaimed === true) {
+
+    alert(
+      "This record is already linked to an account. It cannot be deleted from this page."
+    );
+
+    return;
+
+  }
+
+  const confirmed = confirm(
+    `Delete student record for ${student.fullName} (${student.studentId})?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+
+    await deleteDoc(
+      doc(db, "studentRecords", id)
+    );
+
+    await loadStudents();
+
+    showAlert(
+      pageAlert,
+      "Student record deleted successfully.",
+      "success"
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    showAlert(
+      pageAlert,
+      "Unable to delete student record. Check permissions."
+    );
+
+  }
+
+}
+
+
+// IMPORT BUTTONS
+
+document.getElementById("importBtn")
+  .addEventListener("click", () => {
+
+    document.getElementById("importFile").value = "";
+
+    hideAlert(importAlert);
+
+    importModal.classList.remove("hidden");
+
+  });
+
+
+function closeImportModal() {
+
+  importModal.classList.add("hidden");
+
+  document.getElementById("importFile").value = "";
+
+  hideAlert(importAlert);
+
+}
+
+
+document.getElementById("closeImportModal")
+  .addEventListener("click", closeImportModal);
+
+document.getElementById("cancelImportBtn")
+  .addEventListener("click", closeImportModal);
+
+
+// IMPORT STUDENTS
+
+document.getElementById("processImportBtn")
+  .addEventListener("click", async () => {
+
+    const file = document.getElementById("importFile").files[0];
+
+    if (!file) {
+
+      showAlert(importAlert, "Please select a CSV or Excel file.");
+
+      return;
+
+    }
+
+    const processBtn = document.getElementById("processImportBtn");
+
+    processBtn.disabled = true;
+
+    processBtn.textContent = "Processing...";
+
+    try {
+
+      const buffer = await file.arrayBuffer();
+
+      const workbook = XLSX.read(buffer, { type: "array" });
+
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+
+      const rows = XLSX.utils.sheet_to_json(firstSheet, {
+        defval: "",
+        raw: false
+      });
+
+      if (!rows.length) {
+
+        throw new Error("The spreadsheet contains no student records.");
+
+      }
+
+      const existingIds = new Set(
+        students.map(student => student.id.toLowerCase())
+      );
+
+      let imported = 0;
+      let skipped = 0;
+
+      const errors = [];
+
+      for (let index = 0; index < rows.length; index++) {
+
+        const row = rows[index];
+
+        const normalized = {};
+
+        Object.keys(row).forEach(key => {
+
+          normalized[key.trim().toLowerCase()] = String(row[key]).trim();
+
+        });
+
+        const studentId = normalized.studentid;
+
+        const fullName = normalized.fullname;
+
+        const email = normalized.email.toLowerCase();
+
+        const programmeCode = normalized.programmecode.toUpperCase();
+
+        const levelNumber = Number(normalized.levelnumber);
+
+        if (
+          !studentId ||
+          !fullName ||
+          !email ||
+          !programmeCode ||
+          !levelNumber
+        ) {
+
+          skipped++;
+
+          errors.push(`Row ${index + 2}: Missing required information.`);
+
+          continue;
+
+        }
+
+        if (existingIds.has(studentId.toLowerCase())) {
+
+          skipped++;
+
+          errors.push(`Row ${index + 2}: Duplicate Student ID ${studentId}.`);
+
+          continue;
+
+        }
+
+        const programme = programmes.find(p =>
+          (p.code || "").toUpperCase() === programmeCode
+        );
+
+        if (!programme) {
+
+          skipped++;
+
+          errors.push(`Row ${index + 2}: Programme ${programmeCode} not found.`);
+
+          continue;
+
+        }
+
+        const level = levels.find(l =>
+          l.programmeId === programme.id &&
+          Number(l.levelNumber) === levelNumber
+        );
+
+        if (!level) {
+
+          skipped++;
+
+          errors.push(
+            `Row ${index + 2}: Level ${levelNumber} not found under ${programmeCode}.`
+          );
+
+          continue;
+
+        }
+
+        try {
+
+          await setDoc(
+            doc(db, "studentRecords", studentId),
+            {
+
+              studentId,
+              fullName,
+              email,
+              programmeId: programme.id,
+              levelId: level.id,
+
+              institutionId: INSTITUTION_ID,
+
+              accountClaimed: false,
+
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+
+            }
+          );
+
+          existingIds.add(studentId.toLowerCase());
+
+          imported++;
+
+        } catch (error) {
+
+          skipped++;
+
+          errors.push(
+            `Row ${index + 2}: ${error.message}`
+          );
+
+        }
+
+      }
+
+      await loadStudents();
+
+      closeImportModal();
+
+      showAlert(
+        pageAlert,
+        `Import completed. ${imported} imported, ${skipped} skipped.`,
+        skipped ? "warning" : "success"
+      );
+
+      if (errors.length) {
+
+        console.warn("Import details:", errors);
+
+        console.table(errors.map(message => ({ message })));
+
+      }
+
+    } catch (error) {
+
+      console.error(error);
+
+      showAlert(importAlert, error.message || "Import failed.");
+
+    } finally {
+
+      processBtn.disabled = false;
+
+      processBtn.textContent = "Import Students";
+
+    }
+
+  });
+
+
+// SEARCH AND FILTER
+
+document.getElementById("searchInput")
+  .addEventListener("input", renderStudents);
+
+programmeFilter.addEventListener("change", () => {
+
+  const selectedProgramme = programmeFilter.value;
+
+  levelFilter.innerHTML =
+    '<option value="">All Levels</option>';
+
+  levels
+    .filter(level =>
+      !selectedProgramme || level.programmeId === selectedProgramme
+    )
+    .forEach(level => {
+
+      const option = document.createElement("option");
+
+      option.value = level.id;
+      option.textContent = level.name;
+
+      levelFilter.appendChild(option);
+
+    });
+
+  renderStudents();
+
+});
+
+levelFilter.addEventListener("change", renderStudents);
+
+
+// INITIAL LOAD
+
+async function initializePage() {
+
+  try {
+
+    await loadProgrammes();
+
+    await loadLevels();
+
+    await loadStudents();
+
+  } catch (error) {
+
+    console.error(error);
+
+    showAlert(
+      pageAlert,
+      "Unable to initialize student records. Check your Firestore connection."
+    );
+
+  }
+
+}
+
+await initializePage();
+
+</script>
+
+</body>
+</html>

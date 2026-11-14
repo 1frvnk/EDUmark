@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMark | Level Management</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">EduMark</div>
+    <div class="sidebar-role">Administrator</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="students.html" class="nav-link">Students</a>
+      <a href="teachers.html" class="nav-link">Teachers</a>
+      <a href="programmes.html" class="nav-link">Programmes</a>
+      <a href="levels.html" class="nav-link active">Levels</a>
+      <a href="classes.html" class="nav-link">Legacy Classes</a>
+      <a href="reports.html" class="nav-link">Reports</a>
+    </nav>
+
+    <button class="btn btn-outline" id="logoutBtn">Logout</button>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <h2>Level Management</h2>
+      <span id="adminName">Administrator</span>
+    </header>
+
+    <section class="content">
+
+      <div class="card">
+        <h3>Manage Programme Levels</h3>
+        <p>Create and manage academic levels under each programme.</p>
+
+        <button class="btn btn-primary" id="addLevelBtn">
+          + Add Level
+        </button>
+      </div>
+
+      <div class="card">
+
+        <div style="display:flex; justify-content:space-between; gap:15px; flex-wrap:wrap; margin-bottom:20px;">
+
+          <input
+            type="text"
+            id="searchInput"
+            class="form-control"
+            placeholder="Search levels..."
+            style="max-width:250px;"
+          >
+
+          <select id="programmeFilter" class="form-control" style="max-width:250px;">
+            <option value="">All Programmes</option>
+          </select>
+
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Programme</th>
+                <th>Level</th>
+                <th>Level Number</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="levelsTable">
+              <tr>
+                <td colspan="5">Loading levels...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<!-- ADD / EDIT MODAL -->
+
+<div class="modal-overlay hidden" id="levelModal">
+
+  <div class="modal">
+
+    <div class="modal-header">
+      <h3 id="modalTitle">Add Level</h3>
+      <button class="modal-close" id="closeModal">&times;</button>
+    </div>
+
+    <form id="levelForm">
+
+      <div class="form-group">
+        <label>Programme</label>
+
+        <select id="programmeId" class="form-control" required>
+          <option value="">Select Programme</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Level</label>
+
+        <select id="levelNumber" class="form-control" required>
+          <option value="">Select Level</option>
+          <option value="100">Level 100</option>
+          <option value="200">Level 200</option>
+          <option value="300">Level 300</option>
+          <option value="400">Level 400</option>
+          <option value="500">Level 500</option>
+          <option value="600">Level 600</option>
+        </select>
+      </div>
+
+      <div id="formMessage" class="alert hidden"></div>
+
+      <button type="submit" class="btn btn-primary" id="saveBtn">
+        Save Level
+      </button>
+
+      <button type="button" class="btn btn-outline" id="cancelBtn">
+        Cancel
+      </button>
+
+    </form>
+
+  </div>
+
+</div>
+
+
+<script type="module">
+
+import { auth, db } from "../../js/firebase-config.js";
+
+import {
+  guardPage,
+  attachLogout
+} from "../../js/auth.js";
+
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  query,
+  where,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+
+guardPage("admin");
+attachLogout();
+
+const INSTITUTION_ID = "default";
+
+const levelsTable = document.getElementById("levelsTable");
+const levelModal = document.getElementById("levelModal");
+const levelForm = document.getElementById("levelForm");
+const programmeSelect = document.getElementById("programmeId");
+const programmeFilter = document.getElementById("programmeFilter");
+const levelNumberSelect = document.getElementById("levelNumber");
+const formMessage = document.getElementById("formMessage");
+
+let programmes = [];
+let levels = [];
+let editingId = null;
+
+
+// ADMIN DETAILS
+
+onAuthStateChanged(auth, async (user) => {
+
+  if (!user) return;
+
+  document.getElementById("adminName").textContent =
+    user.email || "Administrator";
+
+});
+
+
+// LOAD PROGRAMMES
+
+async function loadProgrammes() {
+
+  const q = query(
+    collection(db, "programmes"),
+    where("institutionId", "==", INSTITUTION_ID)
+  );
+
+  const snapshot = await getDocs(q);
+
+  programmes = snapshot.docs.map(item => ({
+    id: item.id,
+    ...item.data()
+  }));
+
+  programmeSelect.innerHTML =
+    '<option value="">Select Programme</option>';
+
+  programmeFilter.innerHTML =
+    '<option value="">All Programmes</option>';
+
+  programmes.forEach(programme => {
+
+    const option = document.createElement("option");
+
+    option.value = programme.id;
+    option.textContent = `${programme.name} (${programme.code})`;
+
+    programmeSelect.appendChild(option);
+
+    const filterOption = document.createElement("option");
+
+    filterOption.value = programme.id;
+    filterOption.textContent = programme.name;
+
+    programmeFilter.appendChild(filterOption);
+
+  });
+
+}
+
+
+// LOAD LEVELS
+
+async function loadLevels() {
+
+  try {
+
+    const q = query(
+      collection(db, "levels"),
+      where("institutionId", "==", INSTITUTION_ID)
+    );
+
+    const snapshot = await getDocs(q);
+
+    levels = snapshot.docs.map(item => ({
+      id: item.id,
+      ...item.data()
+    }));
+
+    renderLevels();
+
+  } catch (error) {
+
+    console.error(error);
+
+    levelsTable.innerHTML = `
+      <tr>
+        <td colspan="5">Unable to load levels. Check Firestore permissions.</td>
+      </tr>
+    `;
+
+  }
+
+}
+
+
+// RENDER LEVELS
+
+function renderLevels() {
+
+  const search = document.getElementById("searchInput")
+    .value.toLowerCase();
+
+  const selectedProgramme = programmeFilter.value;
+
+  const filtered = levels.filter(level => {
+
+    const programme = programmes.find(
+      p => p.id === level.programmeId
+    );
+
+    const programmeName = programme?.name || "Unknown Programme";
+
+    const matchesSearch =
+      programmeName.toLowerCase().includes(search) ||
+      level.name.toLowerCase().includes(search);
+
+    const matchesProgramme =
+      !selectedProgramme ||
+      level.programmeId === selectedProgramme;
+
+    return matchesSearch && matchesProgramme;
+
+  });
+
+  levelsTable.innerHTML = "";
+
+  if (!filtered.length) {
+
+    levelsTable.innerHTML = `
+      <tr>
+        <td colspan="5">No levels found.</td>
+      </tr>
+    `;
+
+    return;
+
+  }
+
+  filtered.forEach(level => {
+
+    const programme = programmes.find(
+      p => p.id === level.programmeId
+    );
+
+    const row = document.createElement("tr");
+
+    const programmeCell = document.createElement("td");
+    programmeCell.textContent = programme?.name || "Unknown Programme";
+
+    const nameCell = document.createElement("td");
+    nameCell.textContent = level.name;
+
+    const numberCell = document.createElement("td");
+    numberCell.textContent = level.levelNumber;
+
+    const statusCell = document.createElement("td");
+
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = level.status;
+    statusCell.appendChild(badge);
+
+    const actionsCell = document.createElement("td");
+
+    const editButton = document.createElement("button");
+    editButton.className = "btn btn-outline";
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", () => editLevel(level.id));
+
+    const toggleButton = document.createElement("button");
+    toggleButton.className = "btn btn-outline";
+    toggleButton.style.marginLeft = "5px";
+
+    toggleButton.textContent =
+      level.status === "active" ? "Deactivate" : "Activate";
+
+    toggleButton.addEventListener("click", () => toggleLevel(level.id));
+
+    actionsCell.append(editButton, toggleButton);
+
+    row.append(
+      programmeCell,
+      nameCell,
+      numberCell,
+      statusCell,
+      actionsCell
+    );
+
+    levelsTable.appendChild(row);
+
+  });
+
+}
+
+
+// OPEN MODAL
+
+function openModal() {
+
+  levelForm.reset();
+  editingId = null;
+
+  document.getElementById("modalTitle").textContent = "Add Level";
+
+  document.getElementById("saveBtn").textContent = "Save Level";
+
+  formMessage.classList.add("hidden");
+
+  levelModal.classList.remove("hidden");
+
+}
+
+
+// CLOSE MODAL
+
+function closeModal() {
+
+  levelModal.classList.add("hidden");
+
+  levelForm.reset();
+
+  editingId = null;
+
+}
+
+
+document.getElementById("addLevelBtn")
+  .addEventListener("click", openModal);
+
+document.getElementById("closeModal")
+  .addEventListener("click", closeModal);
+
+document.getElementById("cancelBtn")
+  .addEventListener("click", closeModal);
+
+
+// ADD / UPDATE LEVEL
+
+levelForm.addEventListener("submit", async (event) => {
+
+  event.preventDefault();
+
+  const programmeId = programmeSelect.value;
+  const levelNumber = Number(levelNumberSelect.value);
+
+  if (!programmeId || !levelNumber) return;
+
+  const name = `Level ${levelNumber}`;
+
+  const duplicate = levels.some(level =>
+    level.programmeId === programmeId &&
+    level.levelNumber === levelNumber &&
+    level.id !== editingId
+  );
+
+  if (duplicate) {
+
+    formMessage.textContent =
+      "This level already exists under the selected programme.";
+
+    formMessage.classList.remove("hidden");
+
+    return;
+
+  }
+
+  const saveBtn = document.getElementById("saveBtn");
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving...";
+
+  try {
+
+    const data = {
+      programmeId,
+      levelNumber,
+      name,
+      institutionId: INSTITUTION_ID,
+      updatedAt: serverTimestamp()
+    };
+
+    if (editingId) {
+
+      await updateDoc(
+        doc(db, "levels", editingId),
+        data
+      );
+
+    } else {
+
+      await addDoc(
+        collection(db, "levels"),
+        {
+          ...data,
+          status: "active",
+          createdAt: serverTimestamp()
+        }
+      );
+
+    }
+
+    closeModal();
+
+    await loadLevels();
+
+  } catch (error) {
+
+    console.error(error);
+
+    formMessage.textContent =
+      "Unable to save level. Check Firestore permissions.";
+
+    formMessage.classList.remove("hidden");
+
+  } finally {
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = editingId ? "Update Level" : "Save Level";
+
+  }
+
+});
+
+
+// EDIT LEVEL
+
+function editLevel(id) {
+
+  const level = levels.find(item => item.id === id);
+
+  if (!level) return;
+
+  editingId = id;
+
+  document.getElementById("modalTitle").textContent = "Edit Level";
+
+  document.getElementById("saveBtn").textContent = "Update Level";
+
+  programmeSelect.value = level.programmeId;
+
+  levelNumberSelect.value = level.levelNumber;
+
+  formMessage.classList.add("hidden");
+
+  levelModal.classList.remove("hidden");
+
+}
+
+
+// ACTIVATE / DEACTIVATE
+
+async function toggleLevel(id) {
+
+  const level = levels.find(item => item.id === id);
+
+  if (!level) return;
+
+  const newStatus =
+    level.status === "active" ? "inactive" : "active";
+
+  const confirmed = confirm(
+    `Are you sure you want to ${newStatus === "active" ? "activate" : "deactivate"} this level?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+
+    await updateDoc(
+      doc(db, "levels", id),
+      {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      }
+    );
+
+    await loadLevels();
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("Unable to update level. Check Firestore permissions.");
+
+  }
+
+}
+
+
+// SEARCH AND FILTER
+
+document.getElementById("searchInput")
+  .addEventListener("input", renderLevels);
+
+programmeFilter.addEventListener("change", renderLevels);
+
+
+// INITIAL LOAD
+
+try {
+
+  await loadProgrammes();
+
+  await loadLevels();
+
+} catch (error) {
+
+  console.error(error);
+
+  levelsTable.innerHTML = `
+    <tr>
+      <td colspan="5">Unable to load programme information.</td>
+    </tr>
+  `;
+
+}
+
+</script>
+
+</body>
+</html>

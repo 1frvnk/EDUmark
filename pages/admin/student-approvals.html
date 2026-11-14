@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Approvals | EduMark</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">EduMark</div>
+    <div class="sidebar-role">Administrator</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="students.html" class="nav-link">Students</a>
+      <a href="teachers.html" class="nav-link">Teachers</a>
+      <a href="student-approvals.html" class="nav-link active">Student Approvals</a>
+      <a href="student-records.html" class="nav-link">Student Records</a>
+      <a href="programmes.html" class="nav-link">Programmes</a>
+      <a href="levels.html" class="nav-link">Levels</a>
+      <a href="academic-years.html" class="nav-link">Academic Years</a>
+      <a href="courses.html" class="nav-link">Courses</a>
+      <a href="course-offerings.html" class="nav-link">Course Offerings</a>
+      <a href="course-assignments.html" class="nav-link">Course Assignments</a>
+      <a href="reports.html" class="nav-link">Reports</a>
+    </nav>
+
+    <button class="btn btn-danger" id="logoutBtn">Logout</button>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <h2>Student Approvals</h2>
+    </header>
+
+    <section class="content">
+
+      <div class="card">
+
+        <h3>Student Applications</h3>
+        <p>Review existing student accounts and new registration applications.</p>
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin:20px 0;">
+
+          <input
+            type="text"
+            id="searchInput"
+            class="form-control"
+            placeholder="Search name, email or Student ID..."
+            style="flex:1; min-width:200px;"
+          >
+
+          <select id="sourceFilter" class="form-control" style="max-width:210px;">
+            <option value="all">All Registration Types</option>
+            <option value="legacy">Existing Accounts</option>
+            <option value="new">New Applications</option>
+          </select>
+
+          <select id="statusFilter" class="form-control" style="max-width:200px;">
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="suspended">Suspended</option>
+          </select>
+
+          <button class="btn btn-outline" id="refreshBtn">
+            Refresh
+          </button>
+
+        </div>
+
+        <div id="messageBox"></div>
+
+        <div class="table-wrap">
+
+          <table style="width:100%; border-collapse:collapse;">
+
+            <thead>
+              <tr>
+                <th>Student ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Programme</th>
+                <th>Level</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody id="studentsTable">
+              <tr>
+                <td colspan="8">Loading applications...</td>
+              </tr>
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+<script type="module">
+
+import { auth, db } from "../../js/firebase-config.js";
+
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  updateDoc,
+  serverTimestamp,
+  runTransaction
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+import {
+  guardPage,
+  attachLogout
+} from "../../js/auth.js";
+
+
+guardPage("admin");
+attachLogout();
+
+const studentsTable = document.getElementById("studentsTable");
+const searchInput = document.getElementById("searchInput");
+const statusFilter = document.getElementById("statusFilter");
+const sourceFilter = document.getElementById("sourceFilter");
+const messageBox = document.getElementById("messageBox");
+
+let students = [];
+let programmes = {};
+let levels = {};
+
+let loading = false;
+
+
+/* ================================
+   MESSAGE
+================================ */
+
+function showMessage(message, type = "success") {
+
+  const className = type === "error"
+    ? "alert-danger"
+    : "alert-success";
+
+  messageBox.innerHTML = `
+    <div class="alert ${className}">
+      ${escapeHTML(message)}
+    </div>
+  `;
+
+}
+
+
+/* ================================
+   HTML ESCAPING
+================================ */
+
+function escapeHTML(value) {
+
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[char]);
+
+}
+
+
+/* ================================
+   LOAD PROGRAMMES AND LEVELS
+================================ */
+
+async function loadCatalogues() {
+
+  const [programmeSnapshot, levelSnapshot] = await Promise.all([
+
+    getDocs(collection(db, "programmes")),
+
+    getDocs(collection(db, "levels"))
+
+  ]);
+
+  programmes = {};
+  levels = {};
+
+  programmeSnapshot.forEach(item => {
+
+    const data = item.data();
+
+    programmes[item.id] =
+      data.name || data.code || "Unknown";
+
+  });
+
+  levelSnapshot.forEach(item => {
+
+    const data = item.data();
+
+    levels[item.id] =
+      data.name || `Level ${data.levelNumber || ""}`;
+
+  });
+
+}
+
+
+/* ================================
+   LOAD ALL APPLICATIONS
+================================ */
+
+async function loadStudents() {
+
+  if (loading) return;
+
+  loading = true;
+
+  studentsTable.innerHTML = `
+    <tr>
+      <td colspan="8">Loading applications...</td>
+    </tr>
+  `;
+
+  messageBox.innerHTML = "";
+
+  try {
+
+    await loadCatalogues();
+
+    const [usersSnapshot, applicationsSnapshot] =
+      await Promise.all([
+
+        getDocs(
+          query(
+            collection(db, "users"),
+            where("role", "==", "student")
+          )
+        ),
+
+        getDocs(
+          collection(db, "registrationApplications")
+        )
+
+      ]);
+
+
+    /* EXISTING USER ACCOUNTS */
+
+    const legacyStudents = usersSnapshot.docs.map(item => {
+
+      const data = item.data();
+
+      return {
+
+        id: item.id,
+
+        uid: item.id,
+
+        studentId: data.studentId || "N/A",
+
+        name: data.name || "N/A",
+
+        email: data.email || "N/A",
+
+        programmeId: data.programmeId || "",
+
+        levelId: data.levelId || "",
+
+        accountStatus: data.accountStatus || "unclassified",
+
+        source: "legacy"
+
+      };
+
+    });
+
+
+    /* NEW REGISTRATION APPLICATIONS */
+
+    const newApplications = applicationsSnapshot.docs.map(item => {
+
+      const data = item.data();
+
+      return {
+
+        id: item.id,
+
+        uid: data.uid,
+
+        studentId: data.studentId || item.id,
+
+        name: data.fullName || "N/A",
+
+        email: data.email || "N/A",
+
+        programmeId: data.programmeId || "",
+
+        levelId: data.levelId || "",
+
+        accountStatus: data.status || "pending",
+
+        source: "new"
+
+      };
+
+    });
+
+
+    students = [
+
+      ...legacyStudents,
+
+      ...newApplications
+
+    ];
+
+    renderStudents();
+
+  } catch (error) {
+
+    console.error("Error loading applications:", error);
+
+    studentsTable.innerHTML = `
+      <tr>
+        <td colspan="8">Unable to load applications.</td>
+      </tr>
+    `;
+
+    showMessage(error.message, "error");
+
+  } finally {
+
+    loading = false;
+
+  }
+
+}
+
+
+/* ================================
+   STATUS
+================================ */
+
+function getStatus(student) {
+
+  return student.accountStatus || "unclassified";
+
+}
+
+
+function getStatusBadge(status) {
+
+  const labels = {
+
+    pending: "Pending",
+
+    approved: "Approved",
+
+    rejected: "Rejected",
+
+    suspended: "Suspended",
+
+    unclassified: "Unclassified"
+
+  };
+
+  return `
+    <span class="badge">
+      ${escapeHTML(labels[status] || status)}
+    </span>
+  `;
+
+}
+
+
+/* ================================
+   RENDER STUDENTS
+================================ */
+
+function renderStudents() {
+
+  const search = searchInput.value.toLowerCase().trim();
+
+  const selectedStatus = statusFilter.value;
+
+  const selectedSource = sourceFilter.value;
+
+
+  const filtered = students.filter(student => {
+
+    const name = student.name.toLowerCase();
+
+    const email = student.email.toLowerCase();
+
+    const studentId = String(student.studentId).toLowerCase();
+
+    const status = getStatus(student);
+
+
+    const matchesSearch =
+
+      name.includes(search) ||
+
+      email.includes(search) ||
+
+      studentId.includes(search);
+
+
+    const matchesStatus =
+
+      selectedStatus === "all" ||
+
+      status === selectedStatus;
+
+
+    const matchesSource =
+
+      selectedSource === "all" ||
+
+      student.source === selectedSource;
+
+
+    return matchesSearch && matchesStatus && matchesSource;
+
+  });
+
+
+  if (!filtered.length) {
+
+    studentsTable.innerHTML = `
+      <tr>
+        <td colspan="8">No applications found.</td>
+      </tr>
+    `;
+
+    return;
+
+  }
+
+
+  studentsTable.innerHTML = filtered.map(student => {
+
+    const status = getStatus(student);
+
+    let actions = "";
+
+
+    if (student.source === "new") {
+
+      if (status === "pending") {
+
+        actions = `
+
+          <button
+            class="btn btn-primary"
+            data-action="approve-new"
+            data-id="${escapeHTML(student.id)}">
+
+            Verify & Create Account
+
+          </button>
+
+          <button
+            class="btn btn-danger"
+            data-action="reject-new"
+            data-id="${escapeHTML(student.id)}">
+
+            Reject
+
+          </button>
+
+        `;
+
+      } else {
+
+        actions = "No actions available";
+
+      }
+
+    } else {
+
+      if (status === "pending") {
+
+        actions = `
+
+          <button
+            class="btn btn-primary"
+            data-action="approve"
+            data-id="${escapeHTML(student.id)}">
+
+            Approve
+
+          </button>
+
+          <button
+            class="btn btn-danger"
+            data-action="reject"
+            data-id="${escapeHTML(student.id)}">
+
+            Reject
+
+          </button>
+
+        `;
+
+      } else if (status === "approved") {
+
+        actions = `
+
+          <button
+            class="btn btn-danger"
+            data-action="suspend"
+            data-id="${escapeHTML(student.id)}">
+
+            Suspend
+
+          </button>
+
+        `;
+
+      } else if (status === "suspended") {
+
+        actions = `
+
+          <button
+            class="btn btn-primary"
+            data-action="restore"
+            data-id="${escapeHTML(student.id)}">
+
+            Restore
+
+          </button>
+
+        `;
+
+      } else if (status === "rejected") {
+
+        actions = `
+
+          <button
+            class="btn btn-primary"
+            data-action="approve"
+            data-id="${escapeHTML(student.id)}">
+
+            Approve
+
+          </button>
+
+        `;
+
+      } else {
+
+        actions = "No actions available";
+
+      }
+
+    }
+
+
+    const registrationType = student.source === "new"
+      ? "New Application"
+      : "Existing Account";
+
+
+    return `
+
+      <tr>
+
+        <td>${escapeHTML(student.studentId)}</td>
+
+        <td>${escapeHTML(student.name)}</td>
+
+        <td>${escapeHTML(student.email)}</td>
+
+        <td>
+          ${escapeHTML(programmes[student.programmeId] || "N/A")}
+        </td>
+
+        <td>
+          ${escapeHTML(levels[student.levelId] || "N/A")}
+        </td>
+
+        <td>${registrationType}</td>
+
+        <td>${getStatusBadge(status)}</td>
+
+        <td>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            ${actions}
+          </div>
+        </td>
+
+      </tr>
+
+    `;
+
+  }).join("");
+
+}
+
+
+/* ================================
+   APPROVE NEW APPLICATION
+================================ */
+
+async function approveNewApplication(studentId) {
+
+  if (!confirm(
+    `Verify Student ID ${studentId} and create the student profile?`
+  )) return;
+
+
+  const applicationRef = doc(
+    db,
+    "registrationApplications",
+    studentId
+  );
+
+  try {
+
+    await runTransaction(db, async transaction => {
+
+      const applicationSnapshot =
+        await transaction.get(applicationRef);
+
+
+      if (!applicationSnapshot.exists()) {
+
+        throw new Error("Registration application not found.");
+
+      }
+
+
+      const application = applicationSnapshot.data();
+
+
+      if (application.status !== "pending") {
+
+        throw new Error("This application is no longer pending.");
+
+      }
+
+
+      const uid = application.uid;
+
+      if (!uid) {
+
+        throw new Error("Application has no Firebase user ID.");
+
+      }
+
+
+      const studentRecordRef = doc(
+        db,
+        "studentRecords",
+        studentId
+      );
+
+      const userRef = doc(
+        db,
+        "users",
+        uid
+      );
+
+
+      const [recordSnapshot, userSnapshot] =
+        await Promise.all([
+
+          transaction.get(studentRecordRef),
+
+          transaction.get(userRef)
+
+        ]);
+
+
+      if (!recordSnapshot.exists()) {
+
+        throw new Error(
+          "No official student record exists for this Student ID."
+        );
+
+      }
+
+
+      if (userSnapshot.exists()) {
+
+        throw new Error(
+          "A student profile already exists for this Firebase account."
+        );
+
+      }
+
+
+      const record = recordSnapshot.data();
+
+
+      if (record.accountClaimed !== false) {
+
+        throw new Error(
+          "This official student record has already been claimed."
+        );
+
+      }
+
+
+      const applicationName =
+        String(application.fullName || "").trim().toLowerCase();
+
+      const recordName =
+        String(record.fullName || "").trim().toLowerCase();
+
+      const applicationEmail =
+        String(application.email || "").trim().toLowerCase();
+
+      const recordEmail =
+        String(record.email || "").trim().toLowerCase();
+
+
+      if (application.studentId !== studentId) {
+
+        throw new Error("Student ID does not match the application.");
+
+      }
+
+
+      if (applicationName !== recordName) {
+
+        throw new Error(
+          "The applicant's name does not match the official student record."
+        );
+
+      }
+
+
+      if (applicationEmail !== recordEmail) {
+
+        throw new Error(
+          "The applicant's email does not match the official student record."
+        );
+
+      }
+
+
+      if (application.institutionId !== "default") {
+
+        throw new Error("Invalid institution.");
+
+      }
+
+
+      if (record.institutionId !== "default") {
+
+        throw new Error("Invalid student record institution.");
+
+      }
+
+
+      if (!record.programmeId || !record.levelId) {
+
+        throw new Error(
+          "The official student record is missing programme or level information."
+        );
+
+      }
+
+
+      /* CREATE STUDENT PROFILE */
+
+      transaction.set(userRef, {
+
+        uid: uid,
+
+        studentId: studentId,
+
+        name: record.fullName,
+
+        email: record.email,
+
+        role: "student",
+
+        programmeId: record.programmeId,
+
+        levelId: record.levelId,
+
+        institutionId: "default",
+
+        accountStatus: "pending",
+
+        createdAt: serverTimestamp()
+
+      });
+
+
+      /* MARK OFFICIAL RECORD AS CLAIMED */
+
+      transaction.update(studentRecordRef, {
+
+        accountClaimed: true,
+
+        updatedAt: serverTimestamp()
+
+      });
+
+
+      /* MARK APPLICATION AS APPROVED */
+
+      transaction.update(applicationRef, {
+
+        status: "approved",
+
+        reviewedAt: serverTimestamp(),
+
+        reviewedBy: auth.currentUser.uid
+
+      });
+
+    });
+
+
+    showMessage(
+      `Student ${studentId} verified. Profile created successfully. The account is now awaiting final approval.`
+    );
+
+    await loadStudents();
+
+  } catch (error) {
+
+    console.error("New application approval failed:", error);
+
+    showMessage(error.message, "error");
+
+  }
+
+}
+
+
+/* ================================
+   REJECT NEW APPLICATION
+================================ */
+
+async function rejectNewApplication(studentId) {
+
+  if (!confirm(
+    `Reject the registration application for ${studentId}?`
+  )) return;
+
+
+  try {
+
+    const applicationRef = doc(
+      db,
+      "registrationApplications",
+      studentId
+    );
+
+
+    await runTransaction(db, async transaction => {
+
+      const snapshot = await transaction.get(applicationRef);
+
+
+      if (!snapshot.exists()) {
+
+        throw new Error("Application not found.");
+
+      }
+
+
+      const application = snapshot.data();
+
+
+      if (application.status !== "pending") {
+
+        throw new Error("This application is no longer pending.");
+
+      }
+
+
+      transaction.update(applicationRef, {
+
+        status: "rejected",
+
+        reviewedAt: serverTimestamp(),
+
+        reviewedBy: auth.currentUser.uid
+
+      });
+
+    });
+
+
+    showMessage("Registration application rejected.");
+
+    await loadStudents();
+
+  } catch (error) {
+
+    console.error("Rejection failed:", error);
+
+    showMessage(error.message, "error");
+
+  }
+
+}
+
+
+/* ================================
+   EXISTING ACCOUNT STATUS
+================================ */
+
+async function updateStudentStatus(uid, status) {
+
+  const messages = {
+
+    approved: "Approve this student's account?",
+
+    rejected: "Reject this student's account?",
+
+    suspended: "Suspend this student's account?",
+
+    restore: "Restore this student's account?"
+
+  };
+
+
+  if (!confirm(messages[status] || "Continue?")) return;
+
+
+  const newStatus = status === "restore"
+    ? "approved"
+    : status;
+
+
+  try {
+
+    await updateDoc(doc(db, "users", uid), {
+
+      accountStatus: newStatus,
+
+      updatedAt: serverTimestamp()
+
+    });
+
+
+    showMessage(`Student account successfully ${newStatus}.`);
+
+    await loadStudents();
+
+  } catch (error) {
+
+    console.error("Status update failed:", error);
+
+    showMessage(error.message, "error");
+
+  }
+
+}
+
+
+/* ================================
+   BUTTON ACTIONS
+================================ */
+
+studentsTable.addEventListener("click", event => {
+
+  const button = event.target.closest("button[data-action]");
+
+  if (!button) return;
+
+
+  const action = button.dataset.action;
+
+  const id = button.dataset.id;
+
+
+  if (action === "approve-new") {
+
+    approveNewApplication(id);
+
+  } else if (action === "reject-new") {
+
+    rejectNewApplication(id);
+
+  } else if (
+    ["approve", "reject", "suspend", "restore"].includes(action)
+  ) {
+
+    updateStudentStatus(id, action);
+
+  }
+
+});
+
+
+/* ================================
+   FILTERS AND REFRESH
+================================ */
+
+searchInput.addEventListener("input", renderStudents);
+
+statusFilter.addEventListener("change", renderStudents);
+
+sourceFilter.addEventListener("change", renderStudents);
+
+document
+  .getElementById("refreshBtn")
+  .addEventListener("click", loadStudents);
+
+
+loadStudents();
+
+</script>
+
+</body>
+</html>
