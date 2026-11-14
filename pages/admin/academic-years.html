@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMark | Academic Years</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">EduMark</div>
+    <div class="sidebar-role">Administrator</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="students.html" class="nav-link">Students</a>
+      <a href="teachers.html" class="nav-link">Teachers</a>
+      <a href="programmes.html" class="nav-link">Programmes</a>
+      <a href="levels.html" class="nav-link">Levels</a>
+      <a href="academic-years.html" class="nav-link active">Academic Years</a>
+      <a href="classes.html" class="nav-link">Legacy Classes</a>
+      <a href="reports.html" class="nav-link">Reports</a>
+    </nav>
+
+    <button class="btn btn-outline" id="logoutBtn">Logout</button>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <h2>Academic Year & Semester Management</h2>
+      <span id="adminName">Administrator</span>
+    </header>
+
+    <section class="content">
+
+      <div class="card">
+        <h3>Academic Years</h3>
+        <p>Create and manage academic years for your institution.</p>
+        <button class="btn btn-primary" id="addYearBtn">+ Add Academic Year</button>
+      </div>
+
+      <div class="card">
+        <h3>Academic Year Records</h3>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Academic Year</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="yearsTable">
+              <tr><td colspan="3">Loading academic years...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Semester Management</h3>
+        <p>Create semesters under an academic year.</p>
+
+        <button class="btn btn-primary" id="addSemesterBtn">+ Add Semester</button>
+
+        <div style="margin-top:20px; max-width:300px;">
+          <select id="yearFilter" class="form-control">
+            <option value="">All Academic Years</option>
+          </select>
+        </div>
+
+        <div class="table-wrap" style="margin-top:20px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Academic Year</th>
+                <th>Semester</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="semestersTable">
+              <tr><td colspan="4">Loading semesters...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+
+<!-- ACADEMIC YEAR MODAL -->
+
+<div class="modal-overlay hidden" id="yearModal">
+  <div class="modal">
+
+    <div class="modal-header">
+      <h3 id="yearModalTitle">Add Academic Year</h3>
+      <button class="modal-close" id="closeYearModal">&times;</button>
+    </div>
+
+    <form id="yearForm">
+
+      <div class="form-group">
+        <label>Academic Year</label>
+        <input
+          type="text"
+          id="yearName"
+          class="form-control"
+          placeholder="Example: 2026/2027"
+          pattern="[0-9]{4}/[0-9]{4}"
+          title="Enter the year in the format 2026/2027"
+          required
+        >
+      </div>
+
+      <div id="yearMessage" class="alert hidden"></div>
+
+      <button type="submit" class="btn btn-primary" id="saveYearBtn">
+        Save Academic Year
+      </button>
+
+      <button type="button" class="btn btn-outline" id="cancelYearBtn">
+        Cancel
+      </button>
+
+    </form>
+  </div>
+</div>
+
+
+<!-- SEMESTER MODAL -->
+
+<div class="modal-overlay hidden" id="semesterModal">
+  <div class="modal">
+
+    <div class="modal-header">
+      <h3 id="semesterModalTitle">Add Semester</h3>
+      <button class="modal-close" id="closeSemesterModal">&times;</button>
+    </div>
+
+    <form id="semesterForm">
+
+      <div class="form-group">
+        <label>Academic Year</label>
+        <select id="semesterYearId" class="form-control" required>
+          <option value="">Select Academic Year</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Semester</label>
+        <select id="semesterName" class="form-control" required>
+          <option value="">Select Semester</option>
+          <option value="First Semester">First Semester</option>
+          <option value="Second Semester">Second Semester</option>
+          <option value="Third Semester">Third Semester</option>
+        </select>
+      </div>
+
+      <div id="semesterMessage" class="alert hidden"></div>
+
+      <button type="submit" class="btn btn-primary" id="saveSemesterBtn">
+        Save Semester
+      </button>
+
+      <button type="button" class="btn btn-outline" id="cancelSemesterBtn">
+        Cancel
+      </button>
+
+    </form>
+  </div>
+</div>
+
+
+<script type="module">
+
+import { auth, db } from "../../js/firebase-config.js";
+
+import {
+  guardPage,
+  attachLogout
+} from "../../js/auth.js";
+
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  query,
+  where,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+
+guardPage("admin");
+attachLogout();
+
+const INSTITUTION_ID = "default";
+
+let academicYears = [];
+let semesters = [];
+
+let editingYearId = null;
+let editingSemesterId = null;
+
+const yearsTable = document.getElementById("yearsTable");
+const semestersTable = document.getElementById("semestersTable");
+
+const yearModal = document.getElementById("yearModal");
+const semesterModal = document.getElementById("semesterModal");
+
+const yearForm = document.getElementById("yearForm");
+const semesterForm = document.getElementById("semesterForm");
+
+const yearMessage = document.getElementById("yearMessage");
+const semesterMessage = document.getElementById("semesterMessage");
+
+
+// ADMIN DETAILS
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    document.getElementById("adminName").textContent =
+      user.email || "Administrator";
+  }
+});
+
+
+// LOAD ACADEMIC YEARS
+
+async function loadAcademicYears() {
+
+  const q = query(
+    collection(db, "academicYears"),
+    where("institutionId", "==", INSTITUTION_ID)
+  );
+
+  const snapshot = await getDocs(q);
+
+  academicYears = snapshot.docs.map(item => ({
+    id: item.id,
+    ...item.data()
+  }));
+
+  populateYearSelects();
+  renderYears();
+  renderSemesters();
+}
+
+
+// POPULATE YEAR SELECTS
+
+function populateYearSelects() {
+
+  const semesterYearSelect =
+    document.getElementById("semesterYearId");
+
+  const yearFilter =
+    document.getElementById("yearFilter");
+
+  semesterYearSelect.innerHTML =
+    '<option value="">Select Academic Year</option>';
+
+  yearFilter.innerHTML =
+    '<option value="">All Academic Years</option>';
+
+  academicYears.forEach(year => {
+
+    const option = document.createElement("option");
+    option.value = year.id;
+    option.textContent = year.name;
+
+    semesterYearSelect.appendChild(option);
+
+    const filterOption = document.createElement("option");
+    filterOption.value = year.id;
+    filterOption.textContent = year.name;
+
+    yearFilter.appendChild(filterOption);
+
+  });
+
+}
+
+
+// LOAD SEMESTERS
+
+async function loadSemesters() {
+
+  const q = query(
+    collection(db, "semesters"),
+    where("institutionId", "==", INSTITUTION_ID)
+  );
+
+  const snapshot = await getDocs(q);
+
+  semesters = snapshot.docs.map(item => ({
+    id: item.id,
+    ...item.data()
+  }));
+
+  renderSemesters();
+}
+
+
+// RENDER ACADEMIC YEARS
+
+function renderYears() {
+
+  yearsTable.innerHTML = "";
+
+  if (!academicYears.length) {
+    yearsTable.innerHTML =
+      '<tr><td colspan="3">No academic years created yet.</td></tr>';
+    return;
+  }
+
+  academicYears.forEach(year => {
+
+    const row = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+    nameCell.textContent = year.name;
+
+    const statusCell = document.createElement("td");
+    statusCell.textContent = year.status;
+
+    const actionsCell = document.createElement("td");
+
+    const editButton = document.createElement("button");
+    editButton.className = "btn btn-outline";
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", () => editYear(year.id));
+
+    const toggleButton = document.createElement("button");
+    toggleButton.className = "btn btn-outline";
+    toggleButton.style.marginLeft = "5px";
+    toggleButton.textContent =
+      year.status === "active" ? "Deactivate" : "Activate";
+
+    toggleButton.addEventListener("click", () => toggleYear(year.id));
+
+    actionsCell.append(editButton, toggleButton);
+
+    row.append(nameCell, statusCell, actionsCell);
+
+    yearsTable.appendChild(row);
+
+  });
+
+}
+
+
+// RENDER SEMESTERS
+
+function renderSemesters() {
+
+  semestersTable.innerHTML = "";
+
+  const selectedYear = document.getElementById("yearFilter").value;
+
+  const filtered = semesters.filter(semester =>
+    !selectedYear || semester.academicYearId === selectedYear
+  );
+
+  if (!filtered.length) {
+    semestersTable.innerHTML =
+      '<tr><td colspan="4">No semesters found.</td></tr>';
+    return;
+  }
+
+  filtered.forEach(semester => {
+
+    const year = academicYears.find(
+      item => item.id === semester.academicYearId
+    );
+
+    const row = document.createElement("tr");
+
+    const yearCell = document.createElement("td");
+    yearCell.textContent = year?.name || "Unknown Year";
+
+    const semesterCell = document.createElement("td");
+    semesterCell.textContent = semester.name;
+
+    const statusCell = document.createElement("td");
+    statusCell.textContent = semester.status;
+
+    const actionsCell = document.createElement("td");
+
+    const editButton = document.createElement("button");
+    editButton.className = "btn btn-outline";
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", () =>
+      editSemester(semester.id)
+    );
+
+    const toggleButton = document.createElement("button");
+    toggleButton.className = "btn btn-outline";
+    toggleButton.style.marginLeft = "5px";
+    toggleButton.textContent =
+      semester.status === "active" ? "Deactivate" : "Activate";
+
+    toggleButton.addEventListener("click", () =>
+      toggleSemester(semester.id)
+    );
+
+    actionsCell.append(editButton, toggleButton);
+
+    row.append(yearCell, semesterCell, statusCell, actionsCell);
+
+    semestersTable.appendChild(row);
+
+  });
+
+}
+
+
+// OPEN AND CLOSE YEAR MODAL
+
+function openYearModal() {
+
+  yearForm.reset();
+  editingYearId = null;
+
+  document.getElementById("yearModalTitle").textContent =
+    "Add Academic Year";
+
+  document.getElementById("saveYearBtn").textContent =
+    "Save Academic Year";
+
+  yearMessage.classList.add("hidden");
+
+  yearModal.classList.remove("hidden");
+}
+
+function closeYearModal() {
+  yearModal.classList.add("hidden");
+  yearForm.reset();
+  editingYearId = null;
+}
+
+document.getElementById("addYearBtn")
+  .addEventListener("click", openYearModal);
+
+document.getElementById("closeYearModal")
+  .addEventListener("click", closeYearModal);
+
+document.getElementById("cancelYearBtn")
+  .addEventListener("click", closeYearModal);
+
+
+// SAVE ACADEMIC YEAR
+
+yearForm.addEventListener("submit", async event => {
+
+  event.preventDefault();
+
+  const name = document.getElementById("yearName")
+    .value.trim();
+
+  const duplicate = academicYears.some(year =>
+    year.name.toLowerCase() === name.toLowerCase() &&
+    year.id !== editingYearId
+  );
+
+  if (duplicate) {
+    yearMessage.textContent = "This academic year already exists.";
+    yearMessage.classList.remove("hidden");
+    return;
+  }
+
+  const saveButton = document.getElementById("saveYearBtn");
+
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving...";
+
+  try {
+
+    const data = {
+      name,
+      institutionId: INSTITUTION_ID,
+      updatedAt: serverTimestamp()
+    };
+
+    if (editingYearId) {
+
+      await updateDoc(doc(db, "academicYears", editingYearId), data);
+
+    } else {
+
+      await addDoc(collection(db, "academicYears"), {
+        ...data,
+        status: "active",
+        createdAt: serverTimestamp()
+      });
+
+    }
+
+    closeYearModal();
+    await loadAcademicYears();
+
+  } catch (error) {
+
+    console.error(error);
+
+    yearMessage.textContent =
+      "Unable to save academic year. Check Firestore permissions.";
+
+    yearMessage.classList.remove("hidden");
+
+  } finally {
+
+    saveButton.disabled = false;
+    saveButton.textContent = "Save Academic Year";
+
+  }
+
+});
+
+
+// EDIT ACADEMIC YEAR
+
+function editYear(id) {
+
+  const year = academicYears.find(item => item.id === id);
+  if (!year) return;
+
+  editingYearId = id;
+
+  document.getElementById("yearName").value = year.name;
+
+  document.getElementById("yearModalTitle").textContent =
+    "Edit Academic Year";
+
+  document.getElementById("saveYearBtn").textContent =
+    "Update Academic Year";
+
+  yearMessage.classList.add("hidden");
+
+  yearModal.classList.remove("hidden");
+}
+
+
+// TOGGLE ACADEMIC YEAR
+
+async function toggleYear(id) {
+
+  const year = academicYears.find(item => item.id === id);
+  if (!year) return;
+
+  const newStatus =
+    year.status === "active" ? "inactive" : "active";
+
+  if (!confirm(`Are you sure you want to ${newStatus} ${year.name}?`))
+    return;
+
+  try {
+
+    await updateDoc(doc(db, "academicYears", id), {
+      status: newStatus,
+      updatedAt: serverTimestamp()
+    });
+
+    await loadAcademicYears();
+
+  } catch (error) {
+
+    console.error(error);
+    alert("Unable to update academic year.");
+
+  }
+
+}
+
+
+// OPEN AND CLOSE SEMESTER MODAL
+
+function openSemesterModal() {
+
+  semesterForm.reset();
+  editingSemesterId = null;
+
+  document.getElementById("semesterModalTitle").textContent =
+    "Add Semester";
+
+  document.getElementById("saveSemesterBtn").textContent =
+    "Save Semester";
+
+  semesterMessage.classList.add("hidden");
+
+  semesterModal.classList.remove("hidden");
+}
+
+function closeSemesterModal() {
+  semesterModal.classList.add("hidden");
+  semesterForm.reset();
+  editingSemesterId = null;
+}
+
+document.getElementById("addSemesterBtn")
+  .addEventListener("click", openSemesterModal);
+
+document.getElementById("closeSemesterModal")
+  .addEventListener("click", closeSemesterModal);
+
+document.getElementById("cancelSemesterBtn")
+  .addEventListener("click", closeSemesterModal);
+
+
+// SAVE SEMESTER
+
+semesterForm.addEventListener("submit", async event => {
+
+  event.preventDefault();
+
+  const academicYearId =
+    document.getElementById("semesterYearId").value;
+
+  const name =
+    document.getElementById("semesterName").value;
+
+  const duplicate = semesters.some(semester =>
+    semester.academicYearId === academicYearId &&
+    semester.name === name &&
+    semester.id !== editingSemesterId
+  );
+
+  if (duplicate) {
+    semesterMessage.textContent =
+      "This semester already exists under that academic year.";
+
+    semesterMessage.classList.remove("hidden");
+    return;
+  }
+
+  const saveButton = document.getElementById("saveSemesterBtn");
+
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving...";
+
+  try {
+
+    const data = {
+      academicYearId,
+      name,
+      institutionId: INSTITUTION_ID,
+      updatedAt: serverTimestamp()
+    };
+
+    if (editingSemesterId) {
+
+      await updateDoc(doc(db, "semesters", editingSemesterId), data);
+
+    } else {
+
+      await addDoc(collection(db, "semesters"), {
+        ...data,
+        status: "active",
+        createdAt: serverTimestamp()
+      });
+
+    }
+
+    closeSemesterModal();
+    await loadSemesters();
+
+  } catch (error) {
+
+    console.error(error);
+
+    semesterMessage.textContent =
+      "Unable to save semester. Check Firestore permissions.";
+
+    semesterMessage.classList.remove("hidden");
+
+  } finally {
+
+    saveButton.disabled = false;
+    saveButton.textContent = "Save Semester";
+
+  }
+
+});
+
+
+// EDIT SEMESTER
+
+function editSemester(id) {
+
+  const semester = semesters.find(item => item.id === id);
+  if (!semester) return;
+
+  editingSemesterId = id;
+
+  document.getElementById("semesterYearId").value =
+    semester.academicYearId;
+
+  document.getElementById("semesterName").value =
+    semester.name;
+
+  document.getElementById("semesterModalTitle").textContent =
+    "Edit Semester";
+
+  document.getElementById("saveSemesterBtn").textContent =
+    "Update Semester";
+
+  semesterMessage.classList.add("hidden");
+
+  semesterModal.classList.remove("hidden");
+}
+
+
+// TOGGLE SEMESTER
+
+async function toggleSemester(id) {
+
+  const semester = semesters.find(item => item.id === id);
+  if (!semester) return;
+
+  const newStatus =
+    semester.status === "active" ? "inactive" : "active";
+
+  if (!confirm(`Are you sure you want to ${newStatus} this semester?`))
+    return;
+
+  try {
+
+    await updateDoc(doc(db, "semesters", id), {
+      status: newStatus,
+      updatedAt: serverTimestamp()
+    });
+
+    await loadSemesters();
+
+  } catch (error) {
+
+    console.error(error);
+    alert("Unable to update semester.");
+
+  }
+
+}
+
+
+// FILTER
+
+document.getElementById("yearFilter")
+  .addEventListener("change", renderSemesters);
+
+
+// INITIAL LOAD
+
+try {
+
+  await loadAcademicYears();
+  await loadSemesters();
+
+} catch (error) {
+
+  console.error(error);
+
+  yearsTable.innerHTML =
+    '<tr><td colspan="3">Unable to load academic years.</td></tr>';
+
+  semestersTable.innerHTML =
+    '<tr><td colspan="4">Unable to load semesters.</td></tr>';
+
+}
+
+</script>
+
+</body>
+</html>

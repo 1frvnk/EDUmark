@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMark | Course Catalogue</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">EduMark</div>
+    <div class="sidebar-role">Administrator</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="students.html" class="nav-link">Students</a>
+      <a href="teachers.html" class="nav-link">Teachers</a>
+      <a href="programmes.html" class="nav-link">Programmes</a>
+      <a href="levels.html" class="nav-link">Levels</a>
+      <a href="academic-years.html" class="nav-link">Academic Years</a>
+      <a href="courses.html" class="nav-link active">Course Catalogue</a>
+      <a href="classes.html" class="nav-link">Legacy Classes</a>
+      <a href="reports.html" class="nav-link">Reports</a>
+    </nav>
+
+    <button class="btn btn-outline" id="logoutBtn">Logout</button>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <h2>Course Catalogue</h2>
+      <span id="adminName">Administrator</span>
+    </header>
+
+    <section class="content">
+
+      <div class="card">
+        <h3>Course Management</h3>
+        <p>Create and manage the institution's central course catalogue.</p>
+
+        <button class="btn btn-primary" id="addCourseBtn">
+          + Add New Course
+        </button>
+      </div>
+
+      <div class="card">
+
+        <div style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom:20px;">
+
+          <input
+            type="text"
+            id="searchInput"
+            class="form-control"
+            placeholder="Search course code or title..."
+            style="max-width:300px;"
+          >
+
+          <select id="statusFilter" class="form-control" style="max-width:200px;">
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Course Code</th>
+                <th>Course Title</th>
+                <th>Credit Hours</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="coursesTable">
+              <tr>
+                <td colspan="5">Loading courses...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<!-- COURSE MODAL -->
+
+<div class="modal-overlay hidden" id="courseModal">
+
+  <div class="modal">
+
+    <div class="modal-header">
+      <h3 id="modalTitle">Add New Course</h3>
+      <button class="modal-close" id="closeModal">&times;</button>
+    </div>
+
+    <form id="courseForm">
+
+      <div class="form-group">
+        <label>Course Code</label>
+        <input
+          type="text"
+          id="courseCode"
+          class="form-control"
+          placeholder="Example: CIT 101"
+          maxlength="20"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label>Course Title</label>
+        <input
+          type="text"
+          id="courseTitle"
+          class="form-control"
+          placeholder="Example: Introduction to Computing"
+          maxlength="120"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label>Credit Hours</label>
+        <input
+          type="number"
+          id="creditHours"
+          class="form-control"
+          min="1"
+          max="12"
+          step="1"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label>Course Description</label>
+        <textarea
+          id="courseDescription"
+          class="form-control"
+          rows="4"
+          placeholder="Enter a short course description..."
+          maxlength="1000"
+        ></textarea>
+      </div>
+
+      <div id="formMessage" class="alert hidden"></div>
+
+      <button type="submit" class="btn btn-primary" id="saveBtn">
+        Save Course
+      </button>
+
+      <button type="button" class="btn btn-outline" id="cancelBtn">
+        Cancel
+      </button>
+
+    </form>
+
+  </div>
+
+</div>
+
+
+<script type="module">
+
+import { auth, db } from "../../js/firebase-config.js";
+
+import {
+  guardPage,
+  attachLogout
+} from "../../js/auth.js";
+
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  query,
+  where,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+
+guardPage("admin");
+attachLogout();
+
+const INSTITUTION_ID = "default";
+
+const coursesTable = document.getElementById("coursesTable");
+const courseModal = document.getElementById("courseModal");
+const courseForm = document.getElementById("courseForm");
+const formMessage = document.getElementById("formMessage");
+
+let courses = [];
+let editingId = null;
+
+
+// ADMIN DETAILS
+
+onAuthStateChanged(auth, user => {
+
+  if (user) {
+    document.getElementById("adminName").textContent =
+      user.email || "Administrator";
+  }
+
+});
+
+
+// LOAD COURSES
+
+async function loadCourses() {
+
+  try {
+
+    const q = query(
+      collection(db, "courses"),
+      where("institutionId", "==", INSTITUTION_ID)
+    );
+
+    const snapshot = await getDocs(q);
+
+    courses = snapshot.docs.map(item => ({
+      id: item.id,
+      ...item.data()
+    }));
+
+    renderCourses();
+
+  } catch (error) {
+
+    console.error("Course loading error:", error);
+
+    coursesTable.innerHTML = `
+      <tr>
+        <td colspan="5">
+          Unable to load courses. Check Firestore permissions.
+        </td>
+      </tr>
+    `;
+
+  }
+
+}
+
+
+// RENDER COURSES
+
+function renderCourses() {
+
+  const search = document.getElementById("searchInput")
+    .value.trim().toLowerCase();
+
+  const status = document.getElementById("statusFilter").value;
+
+  const filtered = courses.filter(course => {
+
+    const matchesSearch =
+      course.code.toLowerCase().includes(search) ||
+      course.title.toLowerCase().includes(search);
+
+    const matchesStatus =
+      !status || course.status === status;
+
+    return matchesSearch && matchesStatus;
+
+  });
+
+  coursesTable.innerHTML = "";
+
+  if (!filtered.length) {
+
+    coursesTable.innerHTML = `
+      <tr>
+        <td colspan="5">No courses found.</td>
+      </tr>
+    `;
+
+    return;
+
+  }
+
+  filtered.forEach(course => {
+
+    const row = document.createElement("tr");
+
+    const codeCell = document.createElement("td");
+    codeCell.textContent = course.code;
+
+    const titleCell = document.createElement("td");
+    titleCell.textContent = course.title;
+
+    const creditCell = document.createElement("td");
+    creditCell.textContent = course.creditHours;
+
+    const statusCell = document.createElement("td");
+    statusCell.textContent = course.status;
+
+    const actionsCell = document.createElement("td");
+
+    const editButton = document.createElement("button");
+    editButton.className = "btn btn-outline";
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", () => editCourse(course.id));
+
+    const toggleButton = document.createElement("button");
+    toggleButton.className = "btn btn-outline";
+    toggleButton.style.marginLeft = "5px";
+
+    toggleButton.textContent =
+      course.status === "active" ? "Deactivate" : "Activate";
+
+    toggleButton.addEventListener("click", () => toggleCourse(course.id));
+
+    actionsCell.append(editButton, toggleButton);
+
+    row.append(
+      codeCell,
+      titleCell,
+      creditCell,
+      statusCell,
+      actionsCell
+    );
+
+    coursesTable.appendChild(row);
+
+  });
+
+}
+
+
+// OPEN MODAL
+
+function openModal() {
+
+  courseForm.reset();
+
+  editingId = null;
+
+  document.getElementById("modalTitle").textContent =
+    "Add New Course";
+
+  document.getElementById("saveBtn").textContent =
+    "Save Course";
+
+  formMessage.classList.add("hidden");
+
+  courseModal.classList.remove("hidden");
+
+}
+
+
+// CLOSE MODAL
+
+function closeModal() {
+
+  courseModal.classList.add("hidden");
+
+  courseForm.reset();
+
+  editingId = null;
+
+}
+
+
+document.getElementById("addCourseBtn")
+  .addEventListener("click", openModal);
+
+document.getElementById("closeModal")
+  .addEventListener("click", closeModal);
+
+document.getElementById("cancelBtn")
+  .addEventListener("click", closeModal);
+
+
+// SAVE COURSE
+
+courseForm.addEventListener("submit", async event => {
+
+  event.preventDefault();
+
+  const code = document.getElementById("courseCode")
+    .value.trim().toUpperCase();
+
+  const title = document.getElementById("courseTitle")
+    .value.trim();
+
+  const creditHours = Number(
+    document.getElementById("creditHours").value
+  );
+
+  const description = document.getElementById("courseDescription")
+    .value.trim();
+
+  if (!code || !title || !Number.isInteger(creditHours) ||
+      creditHours < 1 || creditHours > 12) {
+
+    formMessage.textContent = "Please enter valid course information.";
+    formMessage.classList.remove("hidden");
+
+    return;
+
+  }
+
+  const duplicate = courses.some(course =>
+    course.code.toUpperCase() === code &&
+    course.id !== editingId
+  );
+
+  if (duplicate) {
+
+    formMessage.textContent =
+      "This course code already exists.";
+
+    formMessage.classList.remove("hidden");
+
+    return;
+
+  }
+
+  const saveBtn = document.getElementById("saveBtn");
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving...";
+
+  try {
+
+    const data = {
+      code,
+      title,
+      creditHours,
+      description,
+      institutionId: INSTITUTION_ID,
+      updatedAt: serverTimestamp()
+    };
+
+    if (editingId) {
+
+      await updateDoc(
+        doc(db, "courses", editingId),
+        data
+      );
+
+    } else {
+
+      await addDoc(
+        collection(db, "courses"),
+        {
+          ...data,
+          status: "active",
+          createdAt: serverTimestamp()
+        }
+      );
+
+    }
+
+    closeModal();
+
+    await loadCourses();
+
+  } catch (error) {
+
+    console.error("Course saving error:", error);
+
+    formMessage.textContent =
+      "Unable to save course. Check Firestore permissions.";
+
+    formMessage.classList.remove("hidden");
+
+  } finally {
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = editingId ? "Update Course" : "Save Course";
+
+  }
+
+});
+
+
+// EDIT COURSE
+
+function editCourse(id) {
+
+  const course = courses.find(item => item.id === id);
+
+  if (!course) return;
+
+  editingId = id;
+
+  document.getElementById("courseCode").value = course.code;
+  document.getElementById("courseTitle").value = course.title;
+  document.getElementById("creditHours").value = course.creditHours;
+  document.getElementById("courseDescription").value =
+    course.description || "";
+
+  document.getElementById("modalTitle").textContent =
+    "Edit Course";
+
+  document.getElementById("saveBtn").textContent =
+    "Update Course";
+
+  formMessage.classList.add("hidden");
+
+  courseModal.classList.remove("hidden");
+
+}
+
+
+// ACTIVATE / DEACTIVATE
+
+async function toggleCourse(id) {
+
+  const course = courses.find(item => item.id === id);
+
+  if (!course) return;
+
+  const newStatus =
+    course.status === "active" ? "inactive" : "active";
+
+  if (!confirm(`Are you sure you want to ${newStatus} ${course.code}?`))
+    return;
+
+  try {
+
+    await updateDoc(
+      doc(db, "courses", id),
+      {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      }
+    );
+
+    await loadCourses();
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("Unable to update course. Check Firestore permissions.");
+
+  }
+
+}
+
+
+// SEARCH AND FILTER
+
+document.getElementById("searchInput")
+  .addEventListener("input", renderCourses);
+
+document.getElementById("statusFilter")
+  .addEventListener("change", renderCourses);
+
+
+// INITIAL LOAD
+
+await loadCourses();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,645 @@
+?variant="standard" title="EduMark Course Lecturer Assignments" id="83174"}
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lecturer Assignments | EduMark</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">EduMark</div>
+    <div class="sidebar-role">ADMIN PANEL</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="programmes.html" class="nav-link">Programmes</a>
+      <a href="levels.html" class="nav-link">Levels</a>
+      <a href="academic-years.html" class="nav-link">Academic Years</a>
+      <a href="courses.html" class="nav-link">Courses</a>
+      <a href="course-offerings.html" class="nav-link">Course Offerings</a>
+      <a href="course-assignments.html" class="nav-link active">Lecturer Assignments</a>
+      <a href="students.html" class="nav-link">Students</a>
+      <a href="teachers.html" class="nav-link">Teachers</a>
+      <a href="reports.html" class="nav-link">Reports</a>
+    </nav>
+
+    <button class="btn btn-outline" id="logoutBtn">Logout</button>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <h2>Lecturer Assignments</h2>
+    </header>
+
+    <section class="content">
+
+      <div class="card">
+        <h3>Assign Lecturer to Course</h3>
+        <p>Assign lecturers to individual course offerings.</p>
+
+        <form id="assignmentForm">
+
+          <div class="form-group">
+            <label for="offeringSelect">Course Offering</label>
+            <select id="offeringSelect" class="form-control" required>
+              <option value="">Loading offerings...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="lecturerSelect">Lecturer</label>
+            <select id="lecturerSelect" class="form-control" required>
+              <option value="">Loading lecturers...</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="saveBtn">
+            Assign Lecturer
+          </button>
+
+          <div id="formMessage" class="alert hidden"></div>
+
+        </form>
+      </div>
+
+
+      <div class="card">
+
+        <h3>Existing Assignments</h3>
+
+        <div class="table-wrap">
+
+          <table>
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Programme</th>
+                <th>Level</th>
+                <th>Academic Year</th>
+                <th>Semester</th>
+                <th>Lecturer</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody id="assignmentsTable">
+              <tr>
+                <td colspan="8">Loading assignments...</td>
+              </tr>
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<script type="module">
+
+import { auth, db } from "../../js/firebase-config.js";
+
+import {
+  guardPage,
+  attachLogout
+} from "../../js/auth.js";
+
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  query,
+  where,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+
+guardPage("admin");
+attachLogout();
+
+const institutionId = "default";
+
+const assignmentForm = document.getElementById("assignmentForm");
+const offeringSelect = document.getElementById("offeringSelect");
+const lecturerSelect = document.getElementById("lecturerSelect");
+const assignmentsTable = document.getElementById("assignmentsTable");
+const formMessage = document.getElementById("formMessage");
+const saveBtn = document.getElementById("saveBtn");
+
+let offerings = [];
+let lecturers = [];
+let assignments = [];
+
+let courses = [];
+let programmes = [];
+let levels = [];
+let academicYears = [];
+let semesters = [];
+
+
+// Display messages
+function showMessage(message, type = "success") {
+
+  formMessage.textContent = message;
+
+  formMessage.classList.remove("hidden");
+
+  formMessage.classList.remove("alert-success", "alert-error");
+
+  formMessage.classList.add(
+    type === "success" ? "alert-success" : "alert-error"
+  );
+
+}
+
+
+// Load collections with detailed error logging
+async function loadCollection(collectionName) {
+
+  try {
+
+    console.log(`Loading collection: ${collectionName}`);
+
+    const q = query(
+      collection(db, collectionName),
+      where("institutionId", "==", institutionId)
+    );
+
+    const snapshot = await getDocs(q);
+
+    console.log(`${collectionName} loaded successfully:`, snapshot.size);
+
+    return snapshot.docs.map(item => ({
+      id: item.id,
+      ...item.data()
+    }));
+
+  } catch (error) {
+
+    console.error(`FAILED COLLECTION: ${collectionName}`, error);
+
+    throw error;
+
+  }
+
+}
+
+
+// Load lecturers
+async function loadTeachers() {
+
+  try {
+
+    console.log("Loading lecturer accounts...");
+
+    const q = query(
+      collection(db, "users"),
+      where("role", "==", "teacher")
+    );
+
+    const snapshot = await getDocs(q);
+
+    console.log("Lecturer accounts loaded:", snapshot.size);
+
+    return snapshot.docs.map(item => ({
+      id: item.id,
+      ...item.data()
+    }));
+
+  } catch (error) {
+
+    console.error("FAILED TO LOAD LECTURERS:", error);
+
+    throw error;
+
+  }
+
+}
+
+
+// Load all information
+async function loadData() {
+
+  try {
+
+    console.log("Starting EduMark assignment page loading...");
+
+    assignmentsTable.innerHTML = `
+      <tr>
+        <td colspan="8">Loading assignments...</td>
+      </tr>
+    `;
+
+    const results = await Promise.all([
+
+      loadCollection("courseOfferings"),
+      loadTeachers(),
+      loadCollection("courses"),
+      loadCollection("programmes"),
+      loadCollection("levels"),
+      loadCollection("academicYears"),
+      loadCollection("semesters"),
+      loadCollection("courseAssignments")
+
+    ]);
+
+    offerings = results[0];
+    lecturers = results[1];
+    courses = results[2];
+    programmes = results[3];
+    levels = results[4];
+    academicYears = results[5];
+    semesters = results[6];
+    assignments = results[7];
+
+    // Only active course offerings
+    offerings = offerings.filter(item =>
+      item.status === "active"
+    );
+
+    // Support existing lecturer accounts without accountStatus
+    lecturers = lecturers.filter(item =>
+      (!item.accountStatus || item.accountStatus === "approved") &&
+      item.status !== "inactive"
+    );
+
+    console.log("Final lecturers available:", lecturers.length);
+
+    populateOfferingSelect();
+    populateLecturerSelect();
+    renderAssignments();
+
+  } catch (error) {
+
+    console.error("EDUMARK PAGE LOADING FAILED:", error);
+
+    assignmentsTable.innerHTML = `
+      <tr>
+        <td colspan="8">
+          Failed to load data. Open browser console for the exact collection error.
+        </td>
+      </tr>
+    `;
+
+    showMessage(
+      "Some information could not be loaded. Check the browser console.",
+      "error"
+    );
+
+  }
+
+}
+
+
+// Populate course offerings
+function populateOfferingSelect() {
+
+  offeringSelect.innerHTML = `
+    <option value="">Select Course Offering</option>
+  `;
+
+  offerings.forEach(offering => {
+
+    const course = courses.find(item =>
+      item.id === offering.courseId
+    );
+
+    const programme = programmes.find(item =>
+      item.id === offering.programmeId
+    );
+
+    const level = levels.find(item =>
+      item.id === offering.levelId
+    );
+
+    const year = academicYears.find(item =>
+      item.id === offering.academicYearId
+    );
+
+    const semester = semesters.find(item =>
+      item.id === offering.semesterId
+    );
+
+    const option = document.createElement("option");
+
+    option.value = offering.id;
+
+    option.textContent = [
+      course?.code || "Unknown Course",
+      course?.title || "",
+      programme?.code || "Unknown Programme",
+      level?.name || "",
+      year?.name || "",
+      semester?.name || ""
+    ].filter(Boolean).join(" | ");
+
+    offeringSelect.appendChild(option);
+
+  });
+
+}
+
+
+// Populate lecturer dropdown
+function populateLecturerSelect() {
+
+  lecturerSelect.innerHTML = `
+    <option value="">Select Lecturer</option>
+  `;
+
+  lecturers.forEach(lecturer => {
+
+    const option = document.createElement("option");
+
+    option.value = lecturer.id;
+
+    option.textContent =
+      lecturer.name ||
+      lecturer.fullName ||
+      lecturer.email ||
+      lecturer.id;
+
+    lecturerSelect.appendChild(option);
+
+  });
+
+}
+
+
+// Get lecturer name
+function getLecturerName(teacherId) {
+
+  const lecturer = lecturers.find(item =>
+    item.id === teacherId
+  );
+
+  if (!lecturer) return "Lecturer unavailable";
+
+  return lecturer.name ||
+         lecturer.fullName ||
+         lecturer.email ||
+         "Unknown Lecturer";
+
+}
+
+
+// Render assignments
+function renderAssignments() {
+
+  assignmentsTable.innerHTML = "";
+
+  if (assignments.length === 0) {
+
+    assignmentsTable.innerHTML = `
+      <tr>
+        <td colspan="8">No lecturer assignments found.</td>
+      </tr>
+    `;
+
+    return;
+
+  }
+
+  assignments.forEach(assignment => {
+
+    const offering = offerings.find(item =>
+      item.id === assignment.courseOfferingId
+    );
+
+    const course = courses.find(item =>
+      item.id === offering?.courseId
+    );
+
+    const programme = programmes.find(item =>
+      item.id === offering?.programmeId
+    );
+
+    const level = levels.find(item =>
+      item.id === offering?.levelId
+    );
+
+    const year = academicYears.find(item =>
+      item.id === offering?.academicYearId
+    );
+
+    const semester = semesters.find(item =>
+      item.id === offering?.semesterId
+    );
+
+    const isActive = assignment.status === "active";
+
+    const row = document.createElement("tr");
+
+    const values = [
+
+      course ? `${course.code} - ${course.title}` : "Unavailable",
+
+      programme?.name || "Unavailable",
+
+      level?.name || "Unavailable",
+
+      year?.name || "Unavailable",
+
+      semester?.name || "Unavailable",
+
+      getLecturerName(assignment.teacherId),
+
+      isActive ? "Active" : "Inactive"
+
+    ];
+
+    values.forEach((value, index) => {
+
+      const cell = document.createElement("td");
+
+      if (index === 6) {
+
+        const badge = document.createElement("span");
+
+        badge.className = "badge";
+        badge.textContent = value;
+
+        cell.appendChild(badge);
+
+      } else {
+
+        cell.textContent = value;
+
+      }
+
+      row.appendChild(cell);
+
+    });
+
+    const actionCell = document.createElement("td");
+
+    const actionButton = document.createElement("button");
+
+    actionButton.className = isActive
+      ? "btn btn-danger"
+      : "btn btn-outline";
+
+    actionButton.textContent = isActive
+      ? "Deactivate"
+      : "Activate";
+
+    actionButton.addEventListener("click", () => {
+
+      toggleAssignment(assignment.id, isActive);
+
+    });
+
+    actionCell.appendChild(actionButton);
+
+    row.appendChild(actionCell);
+
+    assignmentsTable.appendChild(row);
+
+  });
+
+}
+
+
+// Assign lecturer
+assignmentForm.addEventListener("submit", async (event) => {
+
+  event.preventDefault();
+
+  const courseOfferingId = offeringSelect.value;
+  const teacherId = lecturerSelect.value;
+
+  if (!courseOfferingId || !teacherId) {
+
+    showMessage(
+      "Please select a course offering and lecturer.",
+      "error"
+    );
+
+    return;
+
+  }
+
+  const duplicate = assignments.find(item =>
+
+    item.courseOfferingId === courseOfferingId &&
+    item.teacherId === teacherId &&
+    item.status === "active"
+
+  );
+
+  if (duplicate) {
+
+    showMessage(
+      "This lecturer is already assigned to this course.",
+      "error"
+    );
+
+    return;
+
+  }
+
+  try {
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Assigning...";
+
+    await addDoc(collection(db, "courseAssignments"), {
+
+      courseOfferingId,
+      teacherId,
+
+      institutionId,
+
+      status: "active",
+
+      assignedBy: auth.currentUser.uid,
+
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+
+    });
+
+    assignmentForm.reset();
+
+    showMessage("Lecturer successfully assigned!");
+
+    await loadData();
+
+  } catch (error) {
+
+    console.error("ASSIGNMENT ERROR:", error);
+
+    showMessage(
+      "Unable to assign lecturer. Check Firestore permissions.",
+      "error"
+    );
+
+  } finally {
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Assign Lecturer";
+
+  }
+
+});
+
+
+// Activate or deactivate assignment
+async function toggleAssignment(id, currentlyActive) {
+
+  const confirmation = confirm(
+    `Are you sure you want to ${
+      currentlyActive ? "deactivate" : "activate"
+    } this assignment?`
+  );
+
+  if (!confirmation) return;
+
+  try {
+
+    await updateDoc(doc(db, "courseAssignments", id), {
+
+      status: currentlyActive ? "inactive" : "active",
+
+      updatedAt: serverTimestamp()
+
+    });
+
+    await loadData();
+
+  } catch (error) {
+
+    console.error("UPDATE ASSIGNMENT ERROR:", error);
+
+    alert("Unable to update assignment. Check Firestore permissions.");
+
+  }
+
+}
+
+
+// Initialize
+loadData();
+
+</script>
+
+</body>
+</html>
+```

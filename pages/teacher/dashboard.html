@@ -69,7 +69,6 @@
     }
     .quick-btn .icon { font-size: 1.5rem; }
 
-    /* Hamburger */
     .hamburger {
       display: none; background: none; border: none;
       font-size: 1.4rem; cursor: pointer; color: var(--dark);
@@ -86,28 +85,34 @@
 
 <div class="layout">
 
-  <!-- ── Sidebar ── -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">Edu<span>Mark</span></div>
     <div class="sidebar-role">Teacher Panel</div>
+
     <nav>
-      <a href="dashboard.html"        class="nav-link active"><span class="nav-icon">🏠</span> Dashboard</a>
-      <a href="generate-qr.html"      class="nav-link"><span class="nav-icon">🔳</span> Generate QR</a>
-      <a href="live-attendance.html"  class="nav-link"><span class="nav-icon">📡</span> Live Attendance</a>
-      <a href="my-classes.html"       class="nav-link"><span class="nav-icon">📚</span> My Classes</a>
+      <a href="dashboard.html" class="nav-link active">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+      <a href="generate-qr.html" class="nav-link">
+        <span class="nav-icon">🔳</span> Generate QR
+      </a>
       <a href="live-attendance.html" class="nav-link">
-  <span class="nav-icon">📡</span> Live Attendance
-</a>
+        <span class="nav-icon">📡</span> Live Attendance
+      </a>
+      <a href="my-classes.html" class="nav-link">
+        <span class="nav-icon">📚</span> My Classes
+      </a>
     </nav>
+
     <div class="sidebar-footer">
       <button class="btn btn-ghost btn-full" id="logoutBtn" style="color:rgba(255,255,255,.6); justify-content:flex-start; gap:.6rem;">
         🚪 Logout
       </button>
     </div>
   </aside>
+
   <div class="overlay" id="overlay"></div>
 
-  <!-- ── Main ── -->
   <div class="main">
     <div class="topbar">
       <div style="display:flex; align-items:center; gap:.8rem;">
@@ -119,7 +124,6 @@
 
     <div class="content">
 
-      <!-- Stat cards -->
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-icon">📚</div>
@@ -143,10 +147,8 @@
         </div>
       </div>
 
-      <!-- Quick actions + Recent activity -->
       <div class="recent-grid">
 
-        <!-- Quick actions -->
         <div class="card">
           <h2>Quick Actions</h2>
           <div class="quick-actions">
@@ -165,7 +167,6 @@
           </div>
         </div>
 
-        <!-- Recent sessions -->
         <div class="card">
           <div class="section-header">
             <h2>Recent Sessions</h2>
@@ -177,7 +178,6 @@
 
       </div>
 
-      <!-- My classes -->
       <div class="card mt-2">
         <div class="section-header">
           <h2>My Classes</h2>
@@ -199,148 +199,184 @@
         </div>
       </div>
 
-    </div><!-- /content -->
-  </div><!-- /main -->
-</div><!-- /layout -->
+    </div>
+  </div>
+</div>
 
 <script type="module">
-  import { auth, db }   from "../../js/firebase-config.js";
+  import { auth, db } from "../../js/firebase-config.js";
   import { guardPage, attachLogout } from "../../js/auth.js";
   import {
-    collection, getDocs, query, orderBy, limit, where,
-    Timestamp
+    collection, getDocs, query, orderBy, limit, where, Timestamp,
+    doc, getDoc
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  // ── Guard: teacher only ──
   guardPage("teacher");
   attachLogout("logoutBtn");
 
-  // ── Mobile sidebar toggle ──
-  const sidebar   = document.getElementById("sidebar");
-  const overlay   = document.getElementById("overlay");
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("overlay");
   const hamburger = document.getElementById("hamburger");
+
   hamburger.addEventListener("click", () => {
     sidebar.classList.toggle("open");
     overlay.classList.toggle("show");
   });
+
   overlay.addEventListener("click", () => {
     sidebar.classList.remove("open");
     overlay.classList.remove("show");
   });
 
-  let currentUid = null;
-
-  // ── Show logged-in user name ──
   onAuthStateChanged(auth, async (user) => {
     if (!user) return;
-    currentUid = user.uid;
+
     const snap = await getDoc(doc(db, "users", user.uid));
+
     if (snap.exists()) {
-      document.getElementById("topbarUser").textContent = snap.data().name || user.email;
+      document.getElementById("topbarUser").textContent =
+        snap.data().name || user.email;
     }
+
     loadStats(user.uid);
     loadRecentSessions(user.uid);
     loadMyClasses(user.uid);
   });
 
-  // ── Load stat counts ──
-  // NOTE: assumes each class doc in "classes" has a "teacherId" field
-  // matching the teacher's Auth UID, and each session doc has "teacherId" too.
-  // Adjust field names below if your schema differs.
   async function loadStats(uid) {
     try {
       const classesSnap = await getDocs(
         query(collection(db, "classes"), where("teacherId", "==", uid))
       );
+
       document.getElementById("statClasses").textContent = classesSnap.size;
 
-      // Total students across this teacher's classes (sum of studentIds arrays, deduped)
       const studentSet = new Set();
+
       classesSnap.forEach(d => {
         (d.data().studentIds || []).forEach(id => studentSet.add(id));
       });
+
       document.getElementById("statStudents").textContent = studentSet.size;
 
-      const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
       const sessionsTodaySnap = await getDocs(
-        query(collection(db, "sessions"),
-              where("teacherId", "==", uid),
-              where("date", ">=", Timestamp.fromDate(startOfDay)))
+        query(
+          collection(db, "sessions"),
+          where("teacherId", "==", uid),
+          where("date", ">=", Timestamp.fromDate(startOfDay))
+        )
       );
-      document.getElementById("statSessions").textContent = sessionsTodaySnap.size;
+
+      document.getElementById("statSessions").textContent =
+        sessionsTodaySnap.size;
 
       const activeSnap = await getDocs(
-        query(collection(db, "sessions"),
-              where("teacherId", "==", uid),
-              where("status", "==", "active"))
+        query(
+          collection(db, "sessions"),
+          where("teacherId", "==", uid),
+          where("status", "==", "active")
+        )
       );
-      document.getElementById("statActive").textContent = activeSnap.empty ? "None" : "Live now";
+
+      document.getElementById("statActive").textContent =
+        activeSnap.empty ? "None" : "Live now";
+
     } catch (err) {
-      console.error("Stats load error (check Firestore field names):", err);
+      console.error("Stats load error:", err);
     }
   }
 
-  // ── Load recent sessions ──
   async function loadRecentSessions(uid) {
     const container = document.getElementById("recentSessions");
+
     try {
       const snap = await getDocs(
-        query(collection(db, "sessions"),
-              where("teacherId", "==", uid),
-              orderBy("date", "desc"),
-              limit(5))
+        query(
+          collection(db, "sessions"),
+          where("teacherId", "==", uid),
+          orderBy("date", "desc"),
+          limit(5)
+        )
       );
+
       if (snap.empty) {
-        container.innerHTML = '<p class="text-grey" style="font-size:.88rem;">No sessions yet. Generate a QR code to start one.</p>';
+        container.innerHTML =
+          '<p class="text-grey" style="font-size:.88rem;">No sessions yet. Generate a QR code to start one.</p>';
         return;
       }
+
       const classCache = {};
+
       async function getClassName(classId) {
         if (classCache[classId]) return classCache[classId];
+
         const cs = await getDoc(doc(db, "classes", classId));
         classCache[classId] = cs.exists() ? cs.data().className : classId;
+
         return classCache[classId];
       }
+
       container.innerHTML = "";
+
       for (const d of snap.docs) {
         const s = d.data();
         const className = await getClassName(s.classId);
+
         const dateStr = s.date?.toDate().toLocaleDateString("en-GB", {
-          day: "numeric", month: "short", year: "numeric"
+          day: "numeric",
+          month: "short",
+          year: "numeric"
         }) || "—";
+
         const div = document.createElement("div");
         div.className = "activity-item";
+
         div.innerHTML = `
           <div class="activity-icon">📋</div>
           <div>
             <div class="activity-text">${className}</div>
-            <div class="activity-time">${dateStr} &nbsp;·&nbsp; <span class="badge ${s.status === 'active' ? 'badge-present' : 'badge-absent'}">${s.status || 'closed'}</span></div>
+            <div class="activity-time">
+              ${dateStr} &nbsp;·&nbsp;
+              <span class="badge ${s.status === 'active' ? 'badge-present' : 'badge-absent'}">
+                ${s.status || 'closed'}
+              </span>
+            </div>
           </div>`;
+
         container.appendChild(div);
       }
+
     } catch (err) {
-      container.innerHTML = '<p class="text-grey" style="font-size:.88rem;">Couldn\'t load sessions yet.</p>';
+      container.innerHTML =
+        '<p class="text-grey" style="font-size:.88rem;">Couldn\'t load sessions yet.</p>';
       console.error("Recent sessions load error:", err);
     }
   }
 
-  // ── Load teacher's classes table ──
   async function loadMyClasses(uid) {
     const tbody = document.getElementById("myClassesBody");
+
     try {
       const snap = await getDocs(
         query(collection(db, "classes"), where("teacherId", "==", uid))
       );
+
       if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-grey">No classes assigned yet.</td></tr>';
+        tbody.innerHTML =
+          '<tr><td colspan="3" class="text-grey">No classes assigned yet.</td></tr>';
         return;
       }
+
       tbody.innerHTML = "";
+
       snap.forEach(d => {
         const c = d.data();
         const enrolled = (c.studentIds || []).length;
+
         tbody.innerHTML += `
           <tr>
             <td><strong>${c.className || "—"}</strong></td>
@@ -348,11 +384,14 @@
             <td style="color:var(--grey)">—</td>
           </tr>`;
       });
+
     } catch (err) {
-      tbody.innerHTML = '<tr><td colspan="3" class="text-grey">Couldn\'t load classes yet.</td></tr>';
+      tbody.innerHTML =
+        '<tr><td colspan="3" class="text-grey">Couldn\'t load classes yet.</td></tr>';
       console.error("My classes load error:", err);
     }
   }
 </script>
+
 </body>
 </html>

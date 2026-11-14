@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMark – Programmes</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/style.css">
+
+  <style>
+    .page-header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:1rem;
+      margin-bottom:1.2rem;
+    }
+
+    .page-tools {
+      display:flex;
+      justify-content:space-between;
+      gap:1rem;
+      margin-bottom:1rem;
+    }
+
+    .search-box { max-width:350px; }
+
+    .hamburger {
+      display:none;
+      background:none;
+      border:none;
+      font-size:1.4rem;
+      cursor:pointer;
+      color:var(--dark);
+    }
+
+    .overlay {
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.4);
+      z-index:99;
+    }
+
+    .overlay.show { display:block; }
+
+    .action-btns { display:flex; gap:.4rem; }
+
+    .status-active { background:#e6f4ea; color:#2d9348; }
+    .status-inactive { background:#fce8e6; color:#c62828; }
+
+    @media(max-width:768px) {
+      .hamburger { display:block; }
+      .page-header { align-items:flex-start; }
+      .page-tools { flex-direction:column; }
+      .search-box { max-width:100%; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Edu<span>Mark</span></div>
+    <div class="sidebar-role">Admin Panel</div>
+
+    <nav>
+      <a href="dashboard.html" class="nav-link">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+
+      <a href="students.html" class="nav-link">
+        <span class="nav-icon">🎓</span> Students
+      </a>
+
+      <a href="teachers.html" class="nav-link">
+        <span class="nav-icon">👩‍🏫</span> Teachers
+      </a>
+
+      <a href="programmes.html" class="nav-link active">
+        <span class="nav-icon">🏛️</span> Programmes
+      </a>
+
+      <a href="classes.html" class="nav-link">
+        <span class="nav-icon">📚</span> Legacy Classes
+      </a>
+
+      <a href="reports.html" class="nav-link">
+        <span class="nav-icon">📊</span> Reports
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-full" id="logoutBtn"
+        style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
+        🚪 Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="overlay" id="overlay"></div>
+
+  <main class="main">
+
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:.8rem;">
+        <button class="hamburger" id="hamburger">☰</button>
+        <span class="topbar-title">Programme Management</span>
+      </div>
+
+      <span class="topbar-user" id="topbarUser">Loading…</span>
+    </div>
+
+    <div class="content">
+
+      <div class="page-header">
+        <div>
+          <h1 style="font-size:1.3rem;">Programmes</h1>
+          <p class="text-grey" style="font-size:.88rem;" id="programmeCount">
+            Loading programmes…
+          </p>
+        </div>
+
+        <button class="btn btn-primary" id="addProgrammeBtn">
+          ➕ Add Programme
+        </button>
+      </div>
+
+      <div id="pageAlert" class="alert hidden"></div>
+
+      <div class="page-tools">
+        <input
+          type="search"
+          id="searchInput"
+          class="form-control search-box"
+          placeholder="Search by programme name or code..."
+        >
+
+        <select id="statusFilter" class="form-control" style="max-width:180px;">
+          <option value="all">All programmes</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Programme Name</th>
+                <th>Programme Code</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="programmesBody">
+              <tr>
+                <td colspan="5" class="text-grey">Loading programmes…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Programme modal -->
+<div class="modal-overlay hidden" id="programmeModal">
+
+  <div class="modal">
+
+    <div class="modal-header">
+      <h2 id="modalTitle">Add Programme</h2>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+
+    <div id="modalAlert" class="alert hidden"></div>
+
+    <form id="programmeForm">
+
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+
+        <div class="form-group">
+          <label for="programmeName">Programme Name</label>
+          <input
+            type="text"
+            id="programmeName"
+            class="form-control"
+            placeholder="e.g. Diploma in Information Technology"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="programmeCode">Programme Code</label>
+          <input
+            type="text"
+            id="programmeCode"
+            class="form-control"
+            placeholder="e.g. DIT"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="programmeDuration">Duration (Years)</label>
+          <input
+            type="number"
+            id="programmeDuration"
+            class="form-control"
+            min="1"
+            max="10"
+            placeholder="e.g. 2"
+            required
+          >
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:.6rem;">
+          <button type="button" class="btn btn-ghost" id="cancelBtn">
+            Cancel
+          </button>
+
+          <button type="submit" class="btn btn-primary" id="saveBtn">
+            Save Programme
+          </button>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+
+  import { auth, db } from "../../js/firebase-config.js";
+  import { guardPage, attachLogout } from "../../js/auth.js";
+
+  import {
+    collection,
+    getDocs,
+    addDoc,
+    updateDoc,
+    doc,
+    query,
+    where,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  import { onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  guardPage("admin");
+  attachLogout("logoutBtn");
+
+  const INSTITUTION_ID = "default";
+
+  const programmesBody = document.getElementById("programmesBody");
+  const programmeModal = document.getElementById("programmeModal");
+  const programmeForm = document.getElementById("programmeForm");
+
+  const pageAlert = document.getElementById("pageAlert");
+  const modalAlert = document.getElementById("modalAlert");
+
+  let programmes = [];
+  let editingId = null;
+
+  // Mobile sidebar
+  document.getElementById("hamburger").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("open");
+    document.getElementById("overlay").classList.toggle("show");
+  });
+
+  document.getElementById("overlay").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("show");
+  });
+
+  // Logged-in admin
+  onAuthStateChanged(auth, async user => {
+    if (!user) return;
+
+    try {
+      const { getDoc } = await import(
+        "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
+      );
+
+      const snap = await getDoc(doc(db, "users", user.uid));
+
+      if (snap.exists()) {
+        document.getElementById("topbarUser").textContent =
+          snap.data().name || user.email;
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  });
+
+  function showAlert(element, message, type = "error") {
+    element.textContent = message;
+    element.className = `alert alert-${type}`;
+  }
+
+  function hideAlert(element) {
+    element.className = "alert hidden";
+  }
+
+  function closeModal() {
+    programmeModal.classList.add("hidden");
+    programmeForm.reset();
+    editingId = null;
+    hideAlert(modalAlert);
+  }
+
+  // Open add modal
+  document.getElementById("addProgrammeBtn").addEventListener("click", () => {
+    editingId = null;
+
+    programmeForm.reset();
+
+    document.getElementById("modalTitle").textContent = "Add Programme";
+    document.getElementById("saveBtn").textContent = "Save Programme";
+
+    hideAlert(modalAlert);
+    programmeModal.classList.remove("hidden");
+  });
+
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("cancelBtn").addEventListener("click", closeModal);
+
+  // Load programmes
+  async function loadProgrammes() {
+
+    programmesBody.innerHTML =
+      '<tr><td colspan="5" class="text-grey">Loading programmes…</td></tr>';
+
+    try {
+
+      const q = query(
+        collection(db, "programmes"),
+        where("institutionId", "==", INSTITUTION_ID)
+      );
+
+      const snapshot = await getDocs(q);
+
+      programmes = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }));
+
+      programmes.sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "")
+      );
+
+      renderProgrammes();
+
+    } catch (error) {
+
+      console.error("Programme loading error:", error);
+
+      programmesBody.innerHTML =
+        '<tr><td colspan="5">Unable to load programmes. Check Firestore permissions.</td></tr>';
+
+      document.getElementById("programmeCount").textContent =
+        "Could not load programmes.";
+    }
+  }
+
+  // Render table
+  function renderProgrammes() {
+
+    const search = document.getElementById("searchInput")
+      .value.trim().toLowerCase();
+
+    const status = document.getElementById("statusFilter").value;
+
+    const filtered = programmes.filter(p => {
+
+      const matchesSearch =
+        (p.name || "").toLowerCase().includes(search) ||
+        (p.code || "").toLowerCase().includes(search);
+
+      const matchesStatus =
+        status === "all" || (p.status || "active") === status;
+
+      return matchesSearch && matchesStatus;
+    });
+
+    document.getElementById("programmeCount").textContent =
+      `${programmes.length} programme${programmes.length !== 1 ? "s" : ""} created`;
+
+    if (!filtered.length) {
+
+      programmesBody.innerHTML =
+        '<tr><td colspan="5" class="text-grey">No matching programmes found.</td></tr>';
+
+      return;
+    }
+
+    programmesBody.innerHTML = "";
+
+    filtered.forEach(p => {
+
+      const row = document.createElement("tr");
+
+      const nameCell = document.createElement("td");
+      const strong = document.createElement("strong");
+      strong.textContent = p.name || "—";
+      nameCell.appendChild(strong);
+
+      const codeCell = document.createElement("td");
+      const codeBadge = document.createElement("span");
+      codeBadge.className = "badge badge-admin";
+      codeBadge.textContent = p.code || "—";
+      codeCell.appendChild(codeBadge);
+
+      const durationCell = document.createElement("td");
+      durationCell.textContent =
+        `${p.duration || "—"} years`;
+
+      const statusCell = document.createElement("td");
+      const statusBadge = document.createElement("span");
+      const active = (p.status || "active") === "active";
+
+      statusBadge.className =
+        `badge ${active ? "status-active" : "status-inactive"}`;
+
+      statusBadge.textContent = active ? "Active" : "Inactive";
+      statusCell.appendChild(statusBadge);
+
+      const actionsCell = document.createElement("td");
+      const actions = document.createElement("div");
+      actions.className = "action-btns";
+
+      const editButton = document.createElement("button");
+      editButton.className = "btn btn-outline";
+      editButton.textContent = "Edit";
+      editButton.style.padding = ".35rem .8rem";
+      editButton.addEventListener("click", () => editProgramme(p.id));
+
+      const toggleButton = document.createElement("button");
+      toggleButton.className = "btn btn-ghost";
+      toggleButton.textContent = active ? "Deactivate" : "Activate";
+      toggleButton.style.padding = ".35rem .8rem";
+
+      toggleButton.addEventListener("click", () => toggleProgramme(p.id));
+
+      actions.append(editButton, toggleButton);
+      actionsCell.appendChild(actions);
+
+      row.append(
+        nameCell,
+        codeCell,
+        durationCell,
+        statusCell,
+        actionsCell
+      );
+
+      programmesBody.appendChild(row);
+    });
+  }
+
+  // Save programme
+  programmeForm.addEventListener("submit", async event => {
+
+    event.preventDefault();
+
+    const name = document.getElementById("programmeName").value.trim();
+
+    const code = document.getElementById("programmeCode")
+      .value.trim().toUpperCase();
+
+    const duration = Number(
+      document.getElementById("programmeDuration").value
+    );
+
+    if (!name || !code || !Number.isInteger(duration) ||
+        duration < 1 || duration > 10) {
+
+      showAlert(modalAlert, "Please enter valid programme details.");
+      return;
+    }
+
+    // Prevent duplicate programme codes
+    const duplicate = programmes.some(p =>
+      p.code?.toUpperCase() === code && p.id !== editingId
+    );
+
+    if (duplicate) {
+      showAlert(modalAlert, "This programme code already exists.");
+      return;
+    }
+
+    const saveBtn = document.getElementById("saveBtn");
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+
+    try {
+
+      const data = {
+        name,
+        code,
+        duration,
+        institutionId: INSTITUTION_ID,
+        updatedAt: serverTimestamp()
+      };
+
+      if (editingId) {
+
+        await updateDoc(
+          doc(db, "programmes", editingId),
+          data
+        );
+
+        showAlert(pageAlert, "Programme updated successfully.", "success");
+
+      } else {
+
+        await addDoc(
+          collection(db, "programmes"),
+          {
+            ...data,
+            status: "active",
+            createdAt: serverTimestamp()
+          }
+        );
+
+        showAlert(pageAlert, "Programme created successfully.", "success");
+      }
+
+      closeModal();
+      await loadProgrammes();
+
+    } catch (error) {
+
+      console.error(error);
+      showAlert(modalAlert, error.message || "Unable to save programme.");
+
+    } finally {
+
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save Programme";
+    }
+  });
+
+  // Edit programme
+  function editProgramme(id) {
+
+    const programme = programmes.find(p => p.id === id);
+
+    if (!programme) return;
+
+    editingId = id;
+
+    document.getElementById("modalTitle").textContent = "Edit Programme";
+    document.getElementById("saveBtn").textContent = "Update Programme";
+
+    document.getElementById("programmeName").value = programme.name || "";
+    document.getElementById("programmeCode").value = programme.code || "";
+    document.getElementById("programmeDuration").value = programme.duration || "";
+
+    hideAlert(modalAlert);
+
+    programmeModal.classList.remove("hidden");
+  }
+
+  // Activate / deactivate
+  async function toggleProgramme(id) {
+
+    const programme = programmes.find(p => p.id === id);
+
+    if (!programme) return;
+
+    const currentStatus = programme.status || "active";
+
+    const newStatus = currentStatus === "active"
+      ? "inactive"
+      : "active";
+
+    const confirmed = confirm(
+      `${newStatus === "inactive" ? "Deactivate" : "Activate"} ${programme.name}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+
+      await updateDoc(
+        doc(db, "programmes", id),
+        {
+          status: newStatus,
+          updatedAt: serverTimestamp()
+        }
+      );
+
+      showAlert(
+        pageAlert,
+        `Programme ${newStatus === "active" ? "activated" : "deactivated"}.`,
+        "success"
+      );
+
+      await loadProgrammes();
+
+    } catch (error) {
+
+      console.error(error);
+      showAlert(pageAlert, error.message);
+    }
+  }
+
+  document.getElementById("searchInput")
+    .addEventListener("input", renderProgrammes);
+
+  document.getElementById("statusFilter")
+    .addEventListener("change", renderProgrammes);
+
+  // Initial load
+  await loadProgrammes();
+
+</script>
+
+</body>
+</html>

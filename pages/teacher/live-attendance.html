@@ -11,15 +11,8 @@
   <link rel="stylesheet" href="../../css/style.css">
 
   <style>
-    .page-heading {
-      margin-bottom: 1.5rem;
-    }
-
-    .page-heading p {
-      color: var(--grey);
-      margin-top: .4rem;
-      font-size: .9rem;
-    }
+    .page-heading { margin-bottom: 1.5rem; }
+    .page-heading p { color: var(--grey); margin-top: .4rem; font-size: .9rem; }
 
     .session-controls {
       display: flex;
@@ -60,9 +53,7 @@
       animation: pulse 1.5s infinite;
     }
 
-    @keyframes pulse {
-      50% { opacity: .35; }
-    }
+    @keyframes pulse { 50% { opacity: .35; } }
 
     .stats-grid {
       display: grid;
@@ -78,10 +69,7 @@
       padding: 1.2rem;
     }
 
-    .live-stat-label {
-      color: var(--grey);
-      font-size: .85rem;
-    }
+    .live-stat-label { color: var(--grey); font-size: .85rem; }
 
     .live-stat-value {
       font-size: 1.8rem;
@@ -110,14 +98,9 @@
       background: #f8fafc;
     }
 
-    .attendance-table td {
-      color: var(--dark);
-    }
+    .attendance-table td { color: var(--dark); }
 
-    .table-wrap {
-      overflow-x: auto;
-      margin-top: 1rem;
-    }
+    .table-wrap { overflow-x: auto; margin-top: 1rem; }
 
     .present-badge {
       background: #dcfce7;
@@ -135,16 +118,9 @@
       color: var(--grey);
     }
 
-    .empty-state .icon {
-      font-size: 2.5rem;
-      margin-bottom: .8rem;
-    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: .8rem; }
 
-    .session-info {
-      margin-top: .8rem;
-      color: var(--grey);
-      font-size: .85rem;
-    }
+    .session-info { margin-top: .8rem; color: var(--grey); font-size: .85rem; }
 
     .hamburger {
       display: none;
@@ -162,9 +138,7 @@
       z-index: 99;
     }
 
-    .overlay.show {
-      display: block;
-    }
+    .overlay.show { display: block; }
 
     @media(max-width: 768px) {
       .hamburger { display: block; }
@@ -174,10 +148,8 @@
 </head>
 
 <body>
-
 <div class="layout">
 
-  <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">Edu<span>Mark</span></div>
     <div class="sidebar-role">Teacher Panel</div>
@@ -194,6 +166,10 @@
       <a href="live-attendance.html" class="nav-link active">
         <span class="nav-icon">📡</span> Live Attendance
       </a>
+
+      <a href="my-classes.html" class="nav-link">
+        <span class="nav-icon">📚</span> My Classes
+      </a>
     </nav>
 
     <div class="sidebar-footer">
@@ -206,9 +182,7 @@
 
   <div class="overlay" id="overlay"></div>
 
-  <!-- Main -->
   <div class="main">
-
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:.8rem;">
         <button class="hamburger" id="hamburger">☰</button>
@@ -225,7 +199,6 @@
         <p>Monitor student check-ins as they happen.</p>
       </div>
 
-      <!-- Session selector -->
       <div class="card">
         <div class="session-controls">
           <div>
@@ -247,7 +220,6 @@
         </div>
       </div>
 
-      <!-- Statistics -->
       <div class="stats-grid mt-2">
         <div class="live-stat">
           <div class="live-stat-label">Students Checked In</div>
@@ -262,7 +234,6 @@
         </div>
       </div>
 
-      <!-- Attendance table -->
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
           <h2>Student Check-ins</h2>
@@ -272,9 +243,7 @@
         </div>
 
         <div class="table-wrap" id="attendanceContainer">
-          <div class="loading-state">
-            Loading attendance...
-          </div>
+          <div class="loading-state">Loading attendance...</div>
         </div>
       </div>
 
@@ -283,7 +252,6 @@
 </div>
 
 <script type="module">
-
   import { auth, db } from "../../js/firebase-config.js";
   import { guardPage, attachLogout } from "../../js/auth.js";
 
@@ -296,17 +264,12 @@
     where
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  import {
-    onAuthStateChanged
-  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { onAuthStateChanged } from
+    "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-
-  // Protect teacher page
   guardPage("teacher");
   attachLogout("logoutBtn");
 
-
-  // Mobile sidebar
   const sidebar = document.getElementById("sidebar");
   const overlay = document.getElementById("overlay");
 
@@ -320,8 +283,6 @@
     overlay.classList.remove("show");
   });
 
-
-  // Elements
   const sessionSelect = document.getElementById("sessionSelect");
   const sessionInfo = document.getElementById("sessionInfo");
   const attendanceContainer = document.getElementById("attendanceContainer");
@@ -329,19 +290,16 @@
   const sessionStatus = document.getElementById("sessionStatus");
   const lastUpdated = document.getElementById("lastUpdated");
 
-  let currentTeacher = null;
   let sessionsUnsubscribe = null;
   let attendanceUnsubscribe = null;
   let selectedSessionId = null;
   let sessionData = [];
+  let renderVersion = 0;
 
+  const classCache = {};
 
-  // Authentication
   onAuthStateChanged(auth, async (user) => {
-
     if (!user) return;
-
-    currentTeacher = user;
 
     try {
       const userSnap = await getDoc(doc(db, "users", user.uid));
@@ -359,56 +317,73 @@
       console.error("Teacher profile error:", error);
       sessionInfo.textContent = "Unable to load teacher profile.";
     }
-
   });
 
+  async function getClassName(classId) {
+    if (!classId) return "Unknown Class";
 
-  // Listen for teacher's sessions
+    if (classCache[classId]) {
+      return classCache[classId];
+    }
+
+    try {
+      const classSnap = await getDoc(doc(db, "classes", classId));
+
+      const name = classSnap.exists()
+        ? classSnap.data().className || "Unnamed Class"
+        : "Unknown Class";
+
+      classCache[classId] = name;
+      return name;
+
+    } catch (error) {
+      console.error("Class lookup error:", error);
+      return "Unknown Class";
+    }
+  }
+
   function listenForSessions(teacherId) {
-
     const sessionsQuery = query(
       collection(db, "sessions"),
       where("teacherId", "==", teacherId)
     );
 
-    sessionsUnsubscribe = onSnapshot(sessionsQuery, (snapshot) => {
+    sessionsUnsubscribe = onSnapshot(
+      sessionsQuery,
+      async (snapshot) => {
+        const activeSessions = [];
 
-      sessionData = [];
+        for (const sessionDoc of snapshot.docs) {
+          const data = sessionDoc.data();
 
-      snapshot.forEach((sessionDoc) => {
-        const data = sessionDoc.data();
+          if (data.status === "active") {
+            const className = await getClassName(data.classId);
 
-        if (data.status === "active") {
-          sessionData.push({
-            id: sessionDoc.id,
-            ...data
-          });
+            activeSessions.push({
+              id: sessionDoc.id,
+              ...data,
+              className
+            });
+          }
         }
-      });
 
-      updateSessionDropdown();
-
-    }, (error) => {
-
-      console.error("Sessions listener error:", error);
-
-      sessionInfo.textContent =
-        "Unable to load sessions. Please check your Firebase permissions.";
-
-    });
-
+        sessionData = activeSessions;
+        updateSessionDropdown();
+      },
+      (error) => {
+        console.error("Sessions listener error:", error);
+        sessionInfo.textContent =
+          "Unable to load sessions. Check Firebase permissions.";
+      }
+    );
   }
 
-
-  // Update dropdown
   function updateSessionDropdown() {
-
     const previousSelection = selectedSessionId;
 
     sessionSelect.innerHTML = "";
 
     if (!sessionData.length) {
-
       sessionSelect.disabled = true;
       sessionSelect.innerHTML =
         '<option value="">No active sessions</option>';
@@ -429,24 +404,17 @@
         </div>
       `;
 
+      lastUpdated.textContent = "Waiting...";
       return;
     }
 
     sessionSelect.disabled = false;
 
     sessionData.forEach((session) => {
-
       const option = document.createElement("option");
-
       option.value = session.id;
-
-      option.textContent =
-        session.className ||
-        session.classId ||
-        "Attendance Session";
-
+      option.textContent = session.className;
       sessionSelect.appendChild(option);
-
     });
 
     const stillExists = sessionData.some(
@@ -460,23 +428,14 @@
     sessionSelect.value = selectedSessionId;
 
     showSelectedSession();
-
   }
 
-
-  // Session selection
   sessionSelect.addEventListener("change", () => {
-
     selectedSessionId = sessionSelect.value;
-
     showSelectedSession();
-
   });
 
-
-  // Display selected session
   async function showSelectedSession() {
-
     const session = sessionData.find(
       item => item.id === selectedSessionId
     );
@@ -486,53 +445,22 @@
     sessionStatus.textContent = "Active";
 
     sessionInfo.textContent =
-      "Session ID: " + session.id;
-
-    if (session.classId) {
-
-      try {
-
-        const classSnap = await getDoc(
-          doc(db, "classes", session.classId)
-        );
-
-        if (classSnap.exists()) {
-          const classData = classSnap.data();
-
-          sessionInfo.textContent =
-            (classData.className || "Class") +
-            " • " +
-            (classData.courseCode || "No course code") +
-            " • Session ID: " +
-            session.id;
-        }
-
-      } catch (error) {
-        console.warn("Class information error:", error);
-      }
-
-    }
+      `${session.className} • Session ID: ${session.id}`;
 
     listenForAttendance(session.id);
-
   }
 
-
-  // Stop previous attendance listener
   function stopAttendanceListener() {
-
     if (attendanceUnsubscribe) {
       attendanceUnsubscribe();
       attendanceUnsubscribe = null;
     }
-
   }
 
-
-  // Listen for real-time student attendance
   function listenForAttendance(sessionId) {
-
     stopAttendanceListener();
+
+    const currentRenderVersion = ++renderVersion;
 
     attendanceContainer.innerHTML =
       '<div class="loading-state">Loading student check-ins...</div>';
@@ -545,21 +473,14 @@
     attendanceUnsubscribe = onSnapshot(
       attendanceQuery,
       async (snapshot) => {
+        const records = snapshot.docs.map(d => ({
+          id: d.id,
+          ...d.data()
+        }));
 
-        const records = [];
-
-        snapshot.forEach((attendanceDoc) => {
-          records.push({
-            id: attendanceDoc.id,
-            ...attendanceDoc.data()
-          });
-        });
-
-        // Newest check-in first
         records.sort((a, b) => {
           const timeA = a.checkedInAt?.toMillis?.() || 0;
           const timeB = b.checkedInAt?.toMillis?.() || 0;
-
           return timeB - timeA;
         });
 
@@ -568,11 +489,9 @@
         lastUpdated.textContent =
           "Updated " + new Date().toLocaleTimeString();
 
-        await renderAttendance(records, sessionId);
-
+        await renderAttendance(records, sessionId, currentRenderVersion);
       },
       (error) => {
-
         console.error("Attendance listener error:", error);
 
         attendanceContainer.innerHTML = `
@@ -582,20 +501,17 @@
             <p>Check your Firebase permissions and try again.</p>
           </div>
         `;
-
       }
     );
-
   }
 
-
-  // Render attendance records
-  async function renderAttendance(records, sessionId) {
-
-    if (sessionId !== selectedSessionId) return;
+  async function renderAttendance(records, sessionId, version) {
+    if (
+      sessionId !== selectedSessionId ||
+      version !== renderVersion
+    ) return;
 
     if (!records.length) {
-
       attendanceContainer.innerHTML = `
         <div class="empty-state">
           <div class="icon">👨‍🎓</div>
@@ -603,7 +519,6 @@
           <p>Student check-ins will appear here automatically.</p>
         </div>
       `;
-
       return;
     }
 
@@ -626,8 +541,10 @@
     const tbody = table.querySelector("tbody");
 
     for (let i = 0; i < records.length; i++) {
-
-      if (sessionId !== selectedSessionId) return;
+      if (
+        sessionId !== selectedSessionId ||
+        version !== renderVersion
+      ) return;
 
       const record = records[i];
 
@@ -635,20 +552,20 @@
       let studentId = "Not available";
 
       try {
+        if (record.studentId) {
+          const studentSnap = await getDoc(
+            doc(db, "users", record.studentId)
+          );
 
-        const studentSnap = await getDoc(
-          doc(db, "users", record.studentId)
-        );
+          if (studentSnap.exists()) {
+            const student = studentSnap.data();
 
-        if (studentSnap.exists()) {
+            studentName =
+              student.name || student.email || studentName;
 
-          const student = studentSnap.data();
-
-          studentName = student.name || student.email || studentName;
-          studentId = student.studentId || studentId;
-
+            studentId = student.studentId || studentId;
+          }
         }
-
       } catch (error) {
         console.warn("Student information error:", error);
       }
@@ -665,24 +582,15 @@
 
       const row = document.createElement("tr");
 
-      const values = [
-        i + 1,
-        studentName,
-        studentId,
-        checkInTime
-      ];
-
-      values.forEach((value) => {
-
+      [i + 1, studentName, studentId, checkInTime].forEach(value => {
         const cell = document.createElement("td");
         cell.textContent = value;
         row.appendChild(cell);
-
       });
 
       const statusCell = document.createElement("td");
-
       const badge = document.createElement("span");
+
       badge.className = "present-badge";
       badge.textContent = "Present";
 
@@ -690,17 +598,22 @@
       row.appendChild(statusCell);
 
       tbody.appendChild(row);
-
     }
 
-    if (sessionId !== selectedSessionId) return;
+    if (
+      sessionId !== selectedSessionId ||
+      version !== renderVersion
+    ) return;
 
     attendanceContainer.innerHTML = "";
     attendanceContainer.appendChild(table);
-
   }
 
-</script>
+  window.addEventListener("beforeunload", () => {
+    if (sessionsUnsubscribe) sessionsUnsubscribe();
+    stopAttendanceListener();
+  });
 
+</script>
 </body>
 </html>

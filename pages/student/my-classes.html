@@ -1,453 +1,280 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduMark – My Classes</title>
-
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../../css/style.css" />
-
-  <style>
-    .hamburger {
-      display: none;
-      background: none;
-      border: none;
-      font-size: 1.4rem;
-      cursor: pointer;
-      color: var(--dark);
-    }
-
-    @media (max-width: 768px) {
-      .hamburger { display: block; }
-    }
-
-    .overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.4);
-      z-index: 99;
-    }
-
-    .overlay.show { display: block; }
-
-    .class-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1rem;
-      margin-top: 1.2rem;
-    }
-
-    .class-card {
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.3rem;
-      transition: .2s ease;
-    }
-
-    .class-card:hover {
-      border-color: var(--primary);
-      transform: translateY(-2px);
-    }
-
-    .class-icon {
-      width: 45px;
-      height: 45px;
-      border-radius: 12px;
-      background: var(--primary-light);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.4rem;
-      margin-bottom: 1rem;
-    }
-
-    .class-name {
-      font-size: 1.05rem;
-      font-weight: 700;
-      margin-bottom: .5rem;
-      color: var(--dark);
-    }
-
-    .course-code {
-      display: inline-block;
-      padding: .3rem .65rem;
-      background: var(--primary-light);
-      color: var(--primary);
-      border-radius: 20px;
-      font-size: .78rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-    }
-
-    .class-detail {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: .65rem 0;
-      border-top: 1px solid var(--border);
-      font-size: .85rem;
-    }
-
-    .detail-label { color: var(--grey); }
-    .detail-value {
-      font-weight: 600;
-      text-align: right;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 3rem 1rem;
-      color: var(--grey);
-    }
-
-    .empty-state .empty-icon {
-      font-size: 2.5rem;
-      margin-bottom: .8rem;
-    }
-
-    .page-heading {
-      margin-bottom: 1.2rem;
-    }
-
-    .page-heading p {
-      color: var(--grey);
-      font-size: .9rem;
-      margin-top: .4rem;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 2rem;
-      color: var(--grey);
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Classes | EduMark</title>
+  <link rel="stylesheet" href="../../css/style.css">
 </head>
 
 <body>
 
 <div class="layout">
 
-  <!-- Sidebar -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">Edu<span>Mark</span></div>
-    <div class="sidebar-role">Student Panel</div>
+  <aside class="sidebar">
+    <div class="sidebar-logo">EduMark</div>
+    <div class="sidebar-role">Student</div>
 
     <nav>
-      <a href="dashboard.html" class="nav-link">
-        <span class="nav-icon">🏠</span> Dashboard
-      </a>
-
-      <a href="my-classes.html" class="nav-link active">
-        <span class="nav-icon">📚</span> My Classes
-      </a>
-
-      <a href="scan.html" class="nav-link">
-        <span class="nav-icon">📷</span> Scan QR
-      </a>
-
-      <a href="attendance.html" class="nav-link">
-        <span class="nav-icon">📋</span> My Attendance
-      </a>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="my-classes.html" class="nav-link active">My Classes</a>
+      <a href="attendance.html" class="nav-link">Attendance</a>
+      <a href="scan.html" class="nav-link">Scan QR</a>
     </nav>
 
-    <div class="sidebar-footer">
-      <button class="btn btn-ghost btn-full" id="logoutBtn"
-        style="color:rgba(255,255,255,.6);justify-content:flex-start;gap:.6rem;">
-        🚪 Logout
-      </button>
-    </div>
+    <button class="btn btn-danger" id="logoutBtn">Logout</button>
   </aside>
 
-  <div class="overlay" id="overlay"></div>
+  <main class="main">
 
-  <!-- Main content -->
-  <div class="main">
+    <header class="topbar">
+      <h2>My Classes</h2>
+    </header>
 
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:.8rem;">
-        <button class="hamburger" id="hamburger">☰</button>
-        <span class="topbar-title">My Classes</span>
+    <section class="content">
+
+      <div class="card">
+        <h3>Class Information</h3>
+        <div id="studentInfo">Loading student information...</div>
+        <div id="messageBox"></div>
       </div>
 
-      <span class="topbar-user" id="topbarUser">Loading…</span>
-    </div>
+      <div class="card">
+        <h3>My Enrolled Classes</h3>
 
-    <div class="content">
+        <div class="table-wrap">
+          <table style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th>Class Name</th>
+                <th>Subject</th>
+                <th>Class ID</th>
+                <th>Status</th>
+              </tr>
+            </thead>
 
-      <div class="page-heading">
-        <h2>My Classes</h2>
-        <p>View the courses you are currently enrolled in.</p>
-      </div>
-
-      <!-- Summary -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon">📚</div>
-          <div class="stat-label">Enrolled Classes</div>
-          <div class="stat-value" id="classCount">—</div>
+            <tbody id="classesTable">
+              <tr>
+                <td colspan="4">Loading classes...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <!-- Classes -->
-      <div class="card mt-2">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
-          <h2>Enrolled Courses</h2>
+    </section>
 
-          <button class="btn btn-outline" id="refreshBtn">
-            ↻ Refresh
-          </button>
-        </div>
+  </main>
 
-        <div id="classesContainer" class="loading">
-          Loading your classes…
-        </div>
-      </div>
-
-    </div>
-  </div>
 </div>
 
 <script type="module">
 
-  import { auth, db } from "../../js/firebase-config.js";
-  import { guardPage, attachLogout } from "../../js/auth.js";
+import { auth, db } from "../../js/firebase-config.js";
 
-  import {
-    doc,
-    getDoc
-  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {
+  guardPage,
+  attachLogout
+} from "../../js/auth.js";
 
-  import {
-    onAuthStateChanged
-  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  getDoc,
+  doc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  // Protect page
-  guardPage("student");
-  attachLogout("logoutBtn");
+guardPage("student");
+attachLogout();
 
+const classesTable = document.getElementById("classesTable");
+const studentInfo = document.getElementById("studentInfo");
+const messageBox = document.getElementById("messageBox");
 
-  // Mobile sidebar
-  const sidebar = document.getElementById("sidebar");
-  const overlay = document.getElementById("overlay");
-  const hamburger = document.getElementById("hamburger");
+let loading = false;
 
-  hamburger.addEventListener("click", () => {
-    sidebar.classList.toggle("open");
-    overlay.classList.toggle("show");
-  });
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[char]);
+}
 
-  overlay.addEventListener("click", () => {
-    sidebar.classList.remove("open");
-    overlay.classList.remove("show");
-  });
+function showMessage(message, type = "success") {
+  messageBox.innerHTML = `
+    <div class="alert">
+      ${escapeHTML(message)}
+    </div>
+  `;
 
+  messageBox.style.color =
+    type === "error" ? "#b91c1c" : "#15803d";
+}
 
-  const container = document.getElementById("classesContainer");
-  const classCount = document.getElementById("classCount");
-  const refreshBtn = document.getElementById("refreshBtn");
+async function loadClasses(user) {
 
-  let currentUser = null;
+  if (loading) return;
+  loading = true;
 
+  classesTable.innerHTML = `
+    <tr><td colspan="4">Loading your classes...</td></tr>
+  `;
 
-  // Load logged-in student
-  onAuthStateChanged(auth, async (user) => {
+  try {
 
-    if (!user) return;
+    // GET STUDENT PROFILE
+    const studentRef = doc(db, "users", user.uid);
+    const studentSnapshot = await getDoc(studentRef);
 
-    currentUser = user;
-
-    try {
-      const userSnap = await getDoc(doc(db, "users", user.uid));
-
-      if (!userSnap.exists()) {
-        container.textContent = "Student profile not found.";
-        classCount.textContent = "0";
-        return;
-      }
-
-      const studentData = userSnap.data();
-
-      document.getElementById("topbarUser").textContent =
-        studentData.name || user.email;
-
-      await loadClasses(studentData.classIds || []);
-
-    } catch (error) {
-      console.error("Student profile error:", error);
-      container.textContent = "Unable to load your student profile.";
+    if (!studentSnapshot.exists()) {
+      throw new Error("Student profile not found.");
     }
 
-  });
+    const student = studentSnapshot.data();
 
+    if (student.role !== "student") {
+      throw new Error("This page is only available to students.");
+    }
 
-  // Load enrolled classes
-  async function loadClasses(classIds) {
+    studentInfo.innerHTML = `
+      <p><strong>Name:</strong> ${escapeHTML(student.name || "N/A")}</p>
+      <p><strong>Student ID:</strong> ${escapeHTML(student.studentId || "N/A")}</p>
+      <p><strong>Programme:</strong> ${escapeHTML(student.programmeId || "N/A")}</p>
+      <p><strong>Level:</strong> ${escapeHTML(student.levelId || "N/A")}</p>
+    `;
 
-    container.innerHTML = "";
-    classCount.textContent = classIds.length;
+    // COLLECT CLASS IDS FROM STUDENT PROFILE
+    const classIds = new Set(
+      Array.isArray(student.classIds) ? student.classIds : []
+    );
 
-    if (!classIds.length) {
-      showEmptyState();
+    // ALSO FIND CLASSES WHERE STUDENT UID IS IN studentIds
+    const enrolledQuery = query(
+      collection(db, "classes"),
+      where("studentIds", "array-contains", user.uid)
+    );
+
+    const enrolledSnapshot = await getDocs(enrolledQuery);
+
+    enrolledSnapshot.forEach(classDoc => {
+      classIds.add(classDoc.id);
+    });
+
+    if (classIds.size === 0) {
+
+      classesTable.innerHTML = `
+        <tr>
+          <td colspan="4">
+            You have not been assigned to any classes yet.
+          </td>
+        </tr>
+      `;
+
       return;
     }
 
-    container.innerHTML = '<div class="loading">Loading your enrolled classes…</div>';
+    // FETCH ALL CLASSES
+    const classResults = await Promise.all(
+      [...classIds].map(async classId => {
 
-    const grid = document.createElement("div");
-    grid.className = "class-grid";
+        const classSnapshot = await getDoc(
+          doc(db, "classes", classId)
+        );
 
-    let loadedCount = 0;
-
-    try {
-
-      for (const classId of classIds) {
-
-        try {
-
-          const classSnap = await getDoc(doc(db, "classes", classId));
-
-          if (!classSnap.exists()) {
-            console.warn("Class not found:", classId);
-            continue;
-          }
-
-          const classData = classSnap.data();
-
-          let teacherName = "Not assigned";
-
-          if (classData.teacherId) {
-            try {
-              const teacherSnap = await getDoc(
-                doc(db, "users", classData.teacherId)
-              );
-
-              if (teacherSnap.exists()) {
-                const teacherData = teacherSnap.data();
-                teacherName = teacherData.name || teacherData.email || "Teacher";
-              }
-
-            } catch (teacherError) {
-              console.warn("Could not load teacher:", teacherError);
-            }
-          }
-
-          const card = document.createElement("div");
-          card.className = "class-card";
-
-          const icon = document.createElement("div");
-          icon.className = "class-icon";
-          icon.textContent = "📚";
-
-          const name = document.createElement("div");
-          name.className = "class-name";
-          name.textContent = classData.className || "Unnamed Class";
-
-          const code = document.createElement("span");
-          code.className = "course-code";
-          code.textContent = classData.courseCode || "No course code";
-
-          const teacher = createDetail("Teacher", teacherName);
-          const students = createDetail(
-            "Enrolled Students",
-            (classData.studentIds || []).length
-          );
-
-          card.append(icon, name, code, teacher, students);
-
-          grid.appendChild(card);
-          loadedCount++;
-
-        } catch (classError) {
-          console.error("Class loading error:", classId, classError);
+        if (!classSnapshot.exists()) {
+          return null;
         }
 
-      }
+        return {
+          id: classSnapshot.id,
+          ...classSnapshot.data()
+        };
 
-      container.innerHTML = "";
+      })
+    );
 
-      if (!loadedCount) {
-        showEmptyState("Your enrolled classes could not be found.");
-        return;
-      }
+    const validClasses = classResults.filter(Boolean);
 
-      container.appendChild(grid);
+    if (!validClasses.length) {
 
-    } catch (error) {
-      console.error("Classes loading error:", error);
-      container.textContent = "Unable to load your classes. Please try again.";
+      classesTable.innerHTML = `
+        <tr>
+          <td colspan="4">
+            No valid class records were found.
+          </td>
+        </tr>
+      `;
+
+      return;
     }
 
-  }
+    renderClasses(validClasses);
 
+  } catch (error) {
 
-  // Create class information row
-  function createDetail(label, value) {
+    console.error("Classes load error:", error);
 
-    const row = document.createElement("div");
-    row.className = "class-detail";
-
-    const labelEl = document.createElement("span");
-    labelEl.className = "detail-label";
-    labelEl.textContent = label;
-
-    const valueEl = document.createElement("span");
-    valueEl.className = "detail-value";
-    valueEl.textContent = value;
-
-    row.append(labelEl, valueEl);
-
-    return row;
-  }
-
-
-  // Empty state
-  function showEmptyState(message = "You are not enrolled in any classes yet.") {
-
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📚</div>
-        <h3>No Classes Found</h3>
-        <p>${message}</p>
-      </div>
+    classesTable.innerHTML = `
+      <tr>
+        <td colspan="4">
+          Unable to load your classes.
+        </td>
+      </tr>
     `;
 
+    showMessage(error.message, "error");
+
+  } finally {
+    loading = false;
   }
 
+}
 
-  // Refresh
-  refreshBtn.addEventListener("click", async () => {
+function renderClasses(classes) {
 
-    if (!currentUser) return;
+  classesTable.innerHTML = classes.map(item => {
 
-    refreshBtn.disabled = true;
-    refreshBtn.textContent = "Refreshing…";
+    const className =
+      item.name ||
+      item.className ||
+      item.title ||
+      "Unnamed Class";
 
-    try {
+    const subject =
+      item.subject ||
+      item.description ||
+      "N/A";
 
-      const userSnap = await getDoc(
-        doc(db, "users", currentUser.uid)
-      );
+    return `
+      <tr>
+        <td>${escapeHTML(className)}</td>
+        <td>${escapeHTML(subject)}</td>
+        <td>${escapeHTML(item.id)}</td>
+        <td><span class="badge">Enrolled</span></td>
+      </tr>
+    `;
 
-      if (userSnap.exists()) {
-        const studentData = userSnap.data();
-        await loadClasses(studentData.classIds || []);
-      }
+  }).join("");
 
-    } catch (error) {
-      console.error("Refresh error:", error);
-      container.textContent = "Refresh failed. Please try again.";
-    }
+}
 
-    refreshBtn.disabled = false;
-    refreshBtn.textContent = "↻ Refresh";
+// WAIT FOR FIREBASE AUTHENTICATION
+onAuthStateChanged(auth, user => {
 
-  });
+  if (!user) return;
+
+  loadClasses(user);
+
+});
 
 </script>
 
